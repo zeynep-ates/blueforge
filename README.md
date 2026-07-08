@@ -162,6 +162,22 @@ GET /api/projects/{projectId}/versions/{versionNumber}
 
 ---
 
+## API Documentation
+
+Once the application is running, interactive Swagger UI is available at:
+
+```
+http://localhost:8080/swagger-ui/index.html
+```
+
+The raw OpenAPI spec is available at:
+
+```
+http://localhost:8080/v3/api-docs
+```
+
+---
+
 ## Running Locally
 
 Clone the repository.
