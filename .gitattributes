@@ -1,0 +1,15 @@
+# Auto detect text files and normalize line endings to LF in the repository
+* text=auto eol=lf
+
+# Windows-specific scripts must keep CRLF to run reliably on Windows
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Maven wrapper script is a POSIX shell script - always LF
+mvnw text eol=lf
+
+# Binary files - never touch line endings
+*.jar binary
+*.png binary
+*.jpg binary
+*.gif binary
