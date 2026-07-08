@@ -4,6 +4,7 @@ import com.blueforge.ai.AiClient;
 import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
+import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Project;
 import com.blueforge.entity.ProjectVersion;
@@ -55,11 +56,29 @@ public class ProjectService {
         }
         version = projectVersionRepository.save(version);
 
-        List<ClarifyingQuestionResponse> questionResponses = version.getClarifyingQuestions().stream()
+        return new CreateProjectResponse(project.getId(), version.getId(), toQuestionResponses(version));
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectVersionResponse getProjectVersion(Long projectId, int versionNumber) {
+        ProjectVersion version = projectVersionRepository
+                .findByProjectIdAndVersionNumber(projectId, versionNumber)
+                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+
+        return new ProjectVersionResponse(
+                version.getId(),
+                projectId,
+                version.getVersionNumber(),
+                version.getIdeaSnapshot(),
+                version.getChangeDescription(),
+                version.getStatus(),
+                toQuestionResponses(version));
+    }
+
+    private static List<ClarifyingQuestionResponse> toQuestionResponses(ProjectVersion version) {
+        return version.getClarifyingQuestions().stream()
                 .map(q -> new ClarifyingQuestionResponse(q.getId(), q.getQuestionText(), q.getOrderIndex()))
                 .toList();
-
-        return new CreateProjectResponse(project.getId(), version.getId(), questionResponses);
     }
 
     private List<String> generateClarifyingQuestions(String ideaDescription) {

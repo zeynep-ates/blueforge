@@ -3,6 +3,19 @@
 Short log of decisions and the reasoning behind them, newest first. Not full
 ADRs — a paragraph each, enough for future-us to know *why* without re-deriving it.
 
+## Explicit `JOIN FETCH` for reading a version, not open-session-in-view
+`GET /api/projects/{id}/versions/{v}` needs a `ProjectVersion` and its lazy
+`clarifyingQuestions` together. Rather than relying on `open-in-view` (which
+`application.yml` already disables) or wrapping lazy access in a
+transactional service method, `ProjectVersionRepository` uses an explicit
+`LEFT JOIN FETCH` JPQL query. The query says exactly what's loaded, avoids
+N+1, and keeps "what data does this endpoint touch" visible at the
+repository boundary instead of implicit in when the persistence context
+happens to be open. The response also takes `projectId` from the path
+parameter rather than `version.getProject().getId()` — the caller already
+supplied it, so there's no reason to touch the lazy `project` association at
+all.
+
 ## AI failures return 502, no retry; one transaction per request
 `POST /api/projects` wraps `createProject` in a single `@Transactional`
 method: the `Project` row, the `ProjectVersion`, and its `ClarifyingQuestion`s
