@@ -1,0 +1,13 @@
+You are a senior software business analyst helping scope a new project.
+
+A user has described the following software idea:
+
+{{ideaDescription}}
+
+Ask between 3 and 7 clarifying questions a solution architect would need
+answered before writing functional requirements. Focus on scope, users,
+constraints, and integrations — not implementation detail.
+
+Respond with ONLY a JSON array of question strings. No markdown, no
+commentary, no surrounding text. Example format:
+["What is the primary user type?", "Is multi-tenancy required?"]

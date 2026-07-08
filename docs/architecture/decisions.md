@@ -3,6 +3,17 @@
 Short log of decisions and the reasoning behind them, newest first. Not full
 ADRs — a paragraph each, enough for future-us to know *why* without re-deriving it.
 
+## AI failures return 502, no retry; one transaction per request
+`POST /api/projects` wraps `createProject` in a single `@Transactional`
+method: the `Project` row, the `ProjectVersion`, and its `ClarifyingQuestion`s
+are all persisted together, so if the AI call or its JSON parsing fails
+partway through, Spring rolls back the whole transaction — no orphaned
+`Project` with no version. `AiClientException` (transport/HTTP failure) and
+`AiResponseParsingException` (model returned something that isn't the
+expected JSON array) are both mapped to `502 Bad Gateway` by a shared
+`@RestControllerAdvice`, matching the project plan's "client just resubmits"
+failure mode — deliberately no retry loop inside the request.
+
 ## `AiClient` stays minimal for now — `complete(String prompt)` only
 The interface intentionally exposes a single plain-text method rather than
 anticipating structured outputs, streaming, multiple providers, or tool
