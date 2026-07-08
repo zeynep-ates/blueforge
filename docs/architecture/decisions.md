@@ -3,6 +3,19 @@
 Short log of decisions and the reasoning behind them, newest first. Not full
 ADRs — a paragraph each, enough for future-us to know *why* without re-deriving it.
 
+## `AiClient` interface hides the provider, `RestClient` over `WebClient`
+`OpenRouterAiClient` is the only class allowed to know it's talking to
+OpenRouter — the interface exposes just `String complete(String prompt)`,
+and OpenRouter's wire format (chat-completions request/response shape) is
+private to the implementation as nested records. Swapping providers later is
+a new `AiClient` implementation, not a change to callers. Used Spring's
+synchronous `RestClient` rather than `WebClient`: the whole pipeline is
+synchronous by design (see below), so a reactive HTTP client would add a
+dependency and a mental model this project doesn't use anywhere else.
+Failures are wrapped in `AiClientException` so callers never see
+`RestClientException` — consistent with "AiClient never leaks
+provider-specific types."
+
 ## Hibernate `ddl-auto=validate`, Flyway owns the schema
 Migrations are the single source of truth. Hibernate only checks entity
 mappings against what Flyway created at startup and fails fast on drift,
