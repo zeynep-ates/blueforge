@@ -3,6 +3,26 @@
 Short log of decisions and the reasoning behind them, newest first. Not full
 ADRs — a paragraph each, enough for future-us to know *why* without re-deriving it.
 
+## `AiClient` stays minimal for now — `complete(String prompt)` only
+The interface intentionally exposes a single plain-text method rather than
+anticipating structured outputs, streaming, multiple providers, or tool
+calling. Every one of those adds real shape to an interface (response
+schemas, chunked callbacks, provider capability flags, tool/function
+definitions) and right now there's exactly one call site and one provider —
+designing for flexibility nothing yet exercises would be guessing at
+requirements the pipeline doesn't have. Expected triggers to revisit this:
+- **Structured outputs**: once callers need reliable JSON back (the
+  blueprint pipeline will), add a method that takes a schema/type and
+  returns a parsed DTO rather than raw text, instead of pushing every
+  caller to parse JSON out of `complete()`'s string.
+- **Streaming**: only if a synchronous 10-90s response stops being
+  acceptable (see the synchronous-pipeline decision below) — not before.
+- **Multiple providers**: if a second provider is actually added, not in
+  anticipation of one; the interface already isolates callers from
+  OpenRouter, so this should mean a new implementation, not a redesign.
+- **Tool calling**: only if a feature needs the model to invoke functions
+  mid-generation, which nothing in the current scope does.
+
 ## `AiClient` interface hides the provider, `RestClient` over `WebClient`
 `OpenRouterAiClient` is the only class allowed to know it's talking to
 OpenRouter — the interface exposes just `String complete(String prompt)`,
