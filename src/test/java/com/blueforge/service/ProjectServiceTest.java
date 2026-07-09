@@ -820,6 +820,7 @@ class ProjectServiceTest {
         v1.setId(10L);
         ProjectVersion v2 = new ProjectVersion(project, 2, "A refined idea", ProjectVersionStatus.AWAITING_ANSWERS);
         v2.setId(11L);
+        v2.setChangeDescription("Regenerated from v1");
 
         when(projectRepository.existsById(1L)).thenReturn(true);
         when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(v1, v2));
@@ -828,7 +829,9 @@ class ProjectServiceTest {
 
         assertThat(response).hasSize(2);
         assertThat(response.get(0).versionId()).isEqualTo(10L);
+        assertThat(response.get(0).changeDescription()).isNull();
         assertThat(response.get(1).versionId()).isEqualTo(11L);
+        assertThat(response.get(1).changeDescription()).isEqualTo("Regenerated from v1");
     }
 
     @Test

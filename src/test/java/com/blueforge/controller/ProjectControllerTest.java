@@ -19,11 +19,15 @@ import com.blueforge.dto.ProjectDetailResponse;
 import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
+import com.blueforge.dto.DiffSummary;
 import com.blueforge.dto.RegenerateVersionRequest;
+import com.blueforge.dto.RequirementDiffEntry;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.TaskResponse;
 import com.blueforge.dto.UserStoryResponse;
+import com.blueforge.dto.VersionDiffResponse;
+import com.blueforge.entity.ChangeType;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.RequirementType;
 import com.blueforge.entity.TaskEffort;
@@ -35,6 +39,7 @@ import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectService;
 import com.blueforge.service.ProjectVersionNotFoundException;
 import com.blueforge.service.RegenerationNotAllowedException;
+import com.blueforge.service.VersionDiffService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
@@ -56,6 +61,9 @@ class ProjectControllerTest {
 
     @MockitoBean
     private ProjectService projectService;
+
+    @MockitoBean
+    private VersionDiffService versionDiffService;
 
     @Test
     void createProjectReturnsOkWithBody() throws Exception {
@@ -409,6 +417,45 @@ class ProjectControllerTest {
     }
 
     @Test
+    void getVersionDiffReturnsOkWithBody() throws Exception {
+        when(versionDiffService.diff(eq(1L), eq(1), eq(2)))
+                .thenReturn(new VersionDiffResponse(
+                        1L,
+                        1,
+                        2,
+                        new DiffSummary(1, 0, 0, 1),
+                        List.of(
+                                new RequirementDiffEntry(
+                                        ChangeType.UNCHANGED,
+                                        new RequirementResponse(
+                                                200L, RequirementType.FUNCTIONAL, "Same", "Same", 0),
+                                        new RequirementResponse(
+                                                300L, RequirementType.FUNCTIONAL, "Same", "Same", 0)),
+                                new RequirementDiffEntry(
+                                        ChangeType.ADDED,
+                                        null,
+                                        new RequirementResponse(
+                                                301L, RequirementType.FUNCTIONAL, "New req", "Description", 1))),
+                        List.of()));
+
+        mockMvc.perform(get("/api/projects/1/versions/1/diff/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fromVersionNumber", is(1)))
+                .andExpect(jsonPath("$.toVersionNumber", is(2)))
+                .andExpect(jsonPath("$.summary.addedCount", is(1)))
+                .andExpect(jsonPath("$.summary.unchangedCount", is(1)))
+                .andExpect(jsonPath("$.requirements[1].changeType", is("ADDED")))
+                .andExpect(jsonPath("$.requirements[1].after.title", is("New req")));
+    }
+
+    @Test
+    void getVersionDiffReturnsNotFoundWhenFromVersionMissing() throws Exception {
+        when(versionDiffService.diff(eq(1L), eq(1), eq(2))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(get("/api/projects/1/versions/1/diff/2")).andExpect(status().isNotFound());
+    }
+
+    @Test
     void listProjectsReturnsOkWithBody() throws Exception {
         when(projectService.listProjects())
                 .thenReturn(List.of(new ProjectSummaryResponse(
@@ -430,7 +477,7 @@ class ProjectControllerTest {
                         1L,
                         "Test Project",
                         Instant.parse("2026-07-01T00:00:00Z"),
-                        List.of(new ProjectVersionSummaryResponse(10L, 1, ProjectVersionStatus.AWAITING_ANSWERS))));
+                        List.of(new ProjectVersionSummaryResponse(10L, 1, ProjectVersionStatus.AWAITING_ANSWERS, null))));
 
         mockMvc.perform(get("/api/projects/1"))
                 .andExpect(status().isOk())
@@ -451,14 +498,16 @@ class ProjectControllerTest {
     void listVersionsReturnsOkWithBody() throws Exception {
         when(projectService.listVersions(eq(1L)))
                 .thenReturn(List.of(
-                        new ProjectVersionSummaryResponse(10L, 1, ProjectVersionStatus.AWAITING_ANSWERS),
-                        new ProjectVersionSummaryResponse(11L, 2, ProjectVersionStatus.TASKS_GENERATED)));
+                        new ProjectVersionSummaryResponse(10L, 1, ProjectVersionStatus.AWAITING_ANSWERS, null),
+                        new ProjectVersionSummaryResponse(
+                                11L, 2, ProjectVersionStatus.TASKS_GENERATED, "Regenerated from v1")));
 
         mockMvc.perform(get("/api/projects/1/versions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].versionNumber", is(1)))
                 .andExpect(jsonPath("$[1].versionNumber", is(2)))
-                .andExpect(jsonPath("$[1].status", is("TASKS_GENERATED")));
+                .andExpect(jsonPath("$[1].status", is("TASKS_GENERATED")))
+                .andExpect(jsonPath("$[1].changeDescription", is("Regenerated from v1")));
     }
 
     @Test

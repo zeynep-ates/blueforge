@@ -8,7 +8,9 @@ import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.dto.VersionDiffResponse;
 import com.blueforge.service.ProjectService;
+import com.blueforge.service.VersionDiffService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final VersionDiffService versionDiffService;
 
-    public ProjectController(ProjectService projectService) {
+    public ProjectController(ProjectService projectService, VersionDiffService versionDiffService) {
         this.projectService = projectService;
+        this.versionDiffService = versionDiffService;
     }
 
     @PostMapping
@@ -87,5 +91,11 @@ public class ProjectController {
             @PathVariable int versionNumber,
             @Valid @RequestBody RegenerateVersionRequest request) {
         return ResponseEntity.ok(projectService.regenerateVersion(projectId, versionNumber, request));
+    }
+
+    @GetMapping("/{projectId}/versions/{fromVersion}/diff/{toVersion}")
+    public ResponseEntity<VersionDiffResponse> getVersionDiff(
+            @PathVariable Long projectId, @PathVariable int fromVersion, @PathVariable int toVersion) {
+        return ResponseEntity.ok(versionDiffService.diff(projectId, fromVersion, toVersion));
     }
 }

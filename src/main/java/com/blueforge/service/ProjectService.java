@@ -443,7 +443,8 @@ public class ProjectService {
     }
 
     private static ProjectVersionSummaryResponse toProjectVersionSummaryResponse(ProjectVersion version) {
-        return new ProjectVersionSummaryResponse(version.getId(), version.getVersionNumber(), version.getStatus());
+        return new ProjectVersionSummaryResponse(
+                version.getId(), version.getVersionNumber(), version.getStatus(), version.getChangeDescription());
     }
 
     private static List<ClarifyingQuestionResponse> toQuestionResponses(ProjectVersion version) {
