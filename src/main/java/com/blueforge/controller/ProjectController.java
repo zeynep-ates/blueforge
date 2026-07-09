@@ -3,6 +3,7 @@ package com.blueforge.controller;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
 import com.blueforge.dto.ProjectVersionResponse;
+import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.service.ProjectService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -32,5 +33,13 @@ public class ProjectController {
     public ResponseEntity<ProjectVersionResponse> getProjectVersion(
             @PathVariable Long projectId, @PathVariable int versionNumber) {
         return ResponseEntity.ok(projectService.getProjectVersion(projectId, versionNumber));
+    }
+
+    @PostMapping("/{projectId}/versions/{versionNumber}/answers")
+    public ResponseEntity<ProjectVersionResponse> submitAnswers(
+            @PathVariable Long projectId,
+            @PathVariable int versionNumber,
+            @Valid @RequestBody SubmitAnswersRequest request) {
+        return ResponseEntity.ok(projectService.submitAnswers(projectId, versionNumber, request));
     }
 }

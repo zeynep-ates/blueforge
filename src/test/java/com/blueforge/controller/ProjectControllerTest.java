@@ -10,12 +10,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.blueforge.ai.AiClientException;
+import com.blueforge.dto.AnswerRequest;
 import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
 import com.blueforge.dto.ProjectVersionResponse;
+import com.blueforge.dto.RequirementResponse;
+import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.entity.ProjectVersionStatus;
+import com.blueforge.entity.RequirementType;
+import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.ProjectService;
+import com.blueforge.service.ProjectVersionNotAwaitingAnswersException;
 import com.blueforge.service.ProjectVersionNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -101,5 +107,63 @@ class ProjectControllerTest {
         when(projectService.getProjectVersion(eq(1L), eq(1))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
 
         mockMvc.perform(get("/api/projects/1/versions/1")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void submitAnswersReturnsOkWithBody() throws Exception {
+        when(projectService.submitAnswers(eq(1L), eq(1), any()))
+                .thenReturn(new ProjectVersionResponse(
+                        10L,
+                        1L,
+                        1,
+                        "An idea",
+                        null,
+                        ProjectVersionStatus.REQUIREMENTS_GENERATED,
+                        List.of(new ClarifyingQuestionResponse(
+                                100L, "What is the primary user type?", 0, "End consumers")),
+                        List.of(new RequirementResponse(
+                                200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0))));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/answers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new SubmitAnswersRequest(List.of(new AnswerRequest(100L, "End consumers"))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("REQUIREMENTS_GENERATED")))
+                .andExpect(jsonPath("$.questions[0].answerText", is("End consumers")))
+                .andExpect(jsonPath("$.requirements[0].title", is("User registration")));
+    }
+
+    @Test
+    void submitAnswersReturnsBadRequestWhenAnswersEmpty() throws Exception {
+        mockMvc.perform(post("/api/projects/1/versions/1/answers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new SubmitAnswersRequest(List.of()))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void submitAnswersReturnsBadRequestWhenAnswersInvalid() throws Exception {
+        when(projectService.submitAnswers(eq(1L), eq(1), any()))
+                .thenThrow(new InvalidAnswersException("Question 999 does not belong to this project version"));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/answers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new SubmitAnswersRequest(List.of(new AnswerRequest(999L, "answer"))))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void submitAnswersReturnsConflictWhenVersionNotAwaitingAnswers() throws Exception {
+        when(projectService.submitAnswers(eq(1L), eq(1), any()))
+                .thenThrow(new ProjectVersionNotAwaitingAnswersException(
+                        1L, 1, ProjectVersionStatus.REQUIREMENTS_GENERATED));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/answers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new SubmitAnswersRequest(List.of(new AnswerRequest(100L, "answer"))))))
+                .andExpect(status().isConflict());
     }
 }
