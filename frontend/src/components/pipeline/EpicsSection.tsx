@@ -1,8 +1,11 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Layers } from 'lucide-react'
-import { useGenerateEpics } from '@/api/generated'
+import { useGenerateEpics, useUpdateEpic } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Button } from '@/components/ui/button'
+import { patchVersionArrayItem } from '@/lib/cache'
 import { stageState } from '@/lib/pipeline'
+import { EditItemDialog } from './EditItemDialog'
 import { StageSection } from './StageSection'
 
 interface EpicsSectionProps {
@@ -13,12 +16,26 @@ interface EpicsSectionProps {
 export function EpicsSection({ version, onUpdated }: EpicsSectionProps) {
   const epics = version.epics ?? []
   const state = stageState('epics', version.status)
+  const queryClient = useQueryClient()
   const generateEpics = useGenerateEpics()
+  const updateEpic = useUpdateEpic()
 
   function handleGenerate() {
     generateEpics.mutate(
       { projectId: version.projectId!, versionNumber: version.versionNumber! },
       { onSuccess: onUpdated },
+    )
+  }
+
+  function handleSave(epicId: number, values: Record<string, string>, onSaved: () => void) {
+    updateEpic.mutate(
+      { epicId, data: { title: values.title, description: values.description } },
+      {
+        onSuccess: (updated) => {
+          patchVersionArrayItem(queryClient, version.projectId!, version.versionNumber!, 'epics', updated)
+          onSaved()
+        },
+      },
     )
   }
 
@@ -40,9 +57,22 @@ export function EpicsSection({ version, onUpdated }: EpicsSectionProps) {
       <ul className="flex flex-col gap-3">
         {epics.map((epic) => (
           <li key={epic.id} className="flex flex-col gap-1 rounded-md border p-3">
-            <div className="flex items-center gap-2">
-              <Layers className="text-primary size-4" />
-              <span className="font-medium">{epic.title}</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Layers className="text-primary size-4" />
+                <span className="font-medium">{epic.title}</span>
+              </div>
+              <EditItemDialog
+                itemLabel="epic"
+                fields={[
+                  { key: 'title', label: 'Title' },
+                  { key: 'description', label: 'Description', multiline: true },
+                ]}
+                values={{ title: epic.title ?? '', description: epic.description ?? '' }}
+                onSave={(values, onSaved) => handleSave(epic.id!, values, onSaved)}
+                isPending={updateEpic.isPending}
+                isError={updateEpic.isError}
+              />
             </div>
             <p className="text-muted-foreground text-sm">{epic.description}</p>
           </li>

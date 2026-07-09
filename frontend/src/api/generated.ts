@@ -146,6 +146,36 @@ export interface SubmitAnswersRequest {
   answers?: AnswerRequest[];
 }
 
+export interface UpdateUserStoryRequest {
+  /** @minLength 1 */
+  title?: string;
+  /** @minLength 1 */
+  description?: string;
+  /** @minLength 1 */
+  acceptanceCriteria?: string;
+}
+
+export interface UpdateTaskRequest {
+  /** @minLength 1 */
+  title?: string;
+  /** @minLength 1 */
+  description?: string;
+}
+
+export interface UpdateRequirementRequest {
+  /** @minLength 1 */
+  title?: string;
+  /** @minLength 1 */
+  description?: string;
+}
+
+export interface UpdateEpicRequest {
+  /** @minLength 1 */
+  title?: string;
+  /** @minLength 1 */
+  description?: string;
+}
+
 export type ProjectSummaryResponseLatestStatus = typeof ProjectSummaryResponseLatestStatus[keyof typeof ProjectSummaryResponseLatestStatus];
 
 
@@ -621,6 +651,274 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
 
       const mutationOptions = getSubmitAnswersMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+export const getUpdateUserStoryUrl = (userStoryId: number,) => {
+
+
+  
+
+  return `/api/user-stories/${userStoryId}`
+}
+
+export const updateUserStory = async (userStoryId: number,
+    updateUserStoryRequest: UpdateUserStoryRequest, options?: RequestInit): Promise<UserStoryResponse> => {
+  
+  return apiFetch<UserStoryResponse>(getUpdateUserStoryUrl(userStoryId),
+  {      
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateUserStoryRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateUserStoryMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserStory>>, TError,{userStoryId: number;data: UpdateUserStoryRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateUserStory>>, TError,{userStoryId: number;data: UpdateUserStoryRequest}, TContext> => {
+
+const mutationKey = ['updateUserStory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateUserStory>>, {userStoryId: number;data: UpdateUserStoryRequest}> = (props) => {
+          const {userStoryId,data} = props ?? {};
+
+          return  updateUserStory(userStoryId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateUserStoryMutationResult = NonNullable<Awaited<ReturnType<typeof updateUserStory>>>
+    export type UpdateUserStoryMutationBody = UpdateUserStoryRequest
+    export type UpdateUserStoryMutationError = unknown
+
+    export const useUpdateUserStory = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateUserStory>>, TError,{userStoryId: number;data: UpdateUserStoryRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateUserStory>>,
+        TError,
+        {userStoryId: number;data: UpdateUserStoryRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateUserStoryMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+export const getUpdateTaskUrl = (taskId: number,) => {
+
+
+  
+
+  return `/api/tasks/${taskId}`
+}
+
+export const updateTask = async (taskId: number,
+    updateTaskRequest: UpdateTaskRequest, options?: RequestInit): Promise<TaskResponse> => {
+  
+  return apiFetch<TaskResponse>(getUpdateTaskUrl(taskId),
+  {      
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateTaskRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateTaskMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTask>>, TError,{taskId: number;data: UpdateTaskRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTask>>, TError,{taskId: number;data: UpdateTaskRequest}, TContext> => {
+
+const mutationKey = ['updateTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTask>>, {taskId: number;data: UpdateTaskRequest}> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  updateTask(taskId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTaskMutationResult = NonNullable<Awaited<ReturnType<typeof updateTask>>>
+    export type UpdateTaskMutationBody = UpdateTaskRequest
+    export type UpdateTaskMutationError = unknown
+
+    export const useUpdateTask = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTask>>, TError,{taskId: number;data: UpdateTaskRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateTask>>,
+        TError,
+        {taskId: number;data: UpdateTaskRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateTaskMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+export const getUpdateRequirementUrl = (requirementId: number,) => {
+
+
+  
+
+  return `/api/requirements/${requirementId}`
+}
+
+export const updateRequirement = async (requirementId: number,
+    updateRequirementRequest: UpdateRequirementRequest, options?: RequestInit): Promise<RequirementResponse> => {
+  
+  return apiFetch<RequirementResponse>(getUpdateRequirementUrl(requirementId),
+  {      
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateRequirementRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateRequirementMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRequirement>>, TError,{requirementId: number;data: UpdateRequirementRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRequirement>>, TError,{requirementId: number;data: UpdateRequirementRequest}, TContext> => {
+
+const mutationKey = ['updateRequirement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRequirement>>, {requirementId: number;data: UpdateRequirementRequest}> = (props) => {
+          const {requirementId,data} = props ?? {};
+
+          return  updateRequirement(requirementId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRequirementMutationResult = NonNullable<Awaited<ReturnType<typeof updateRequirement>>>
+    export type UpdateRequirementMutationBody = UpdateRequirementRequest
+    export type UpdateRequirementMutationError = unknown
+
+    export const useUpdateRequirement = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRequirement>>, TError,{requirementId: number;data: UpdateRequirementRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateRequirement>>,
+        TError,
+        {requirementId: number;data: UpdateRequirementRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateRequirementMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+export const getUpdateEpicUrl = (epicId: number,) => {
+
+
+  
+
+  return `/api/epics/${epicId}`
+}
+
+export const updateEpic = async (epicId: number,
+    updateEpicRequest: UpdateEpicRequest, options?: RequestInit): Promise<EpicResponse> => {
+  
+  return apiFetch<EpicResponse>(getUpdateEpicUrl(epicId),
+  {      
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateEpicRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateEpicMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEpic>>, TError,{epicId: number;data: UpdateEpicRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEpic>>, TError,{epicId: number;data: UpdateEpicRequest}, TContext> => {
+
+const mutationKey = ['updateEpic'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEpic>>, {epicId: number;data: UpdateEpicRequest}> = (props) => {
+          const {epicId,data} = props ?? {};
+
+          return  updateEpic(epicId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEpicMutationResult = NonNullable<Awaited<ReturnType<typeof updateEpic>>>
+    export type UpdateEpicMutationBody = UpdateEpicRequest
+    export type UpdateEpicMutationError = unknown
+
+    export const useUpdateEpic = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEpic>>, TError,{epicId: number;data: UpdateEpicRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateEpic>>,
+        TError,
+        {epicId: number;data: UpdateEpicRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateEpicMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

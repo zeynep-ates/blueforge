@@ -1,10 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { BookOpen } from 'lucide-react'
-import { useGenerateUserStories } from '@/api/generated'
+import { useGenerateUserStories, useUpdateUserStory } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { patchVersionArrayItem } from '@/lib/cache'
 import { stageState } from '@/lib/pipeline'
+import { EditItemDialog } from './EditItemDialog'
 import { StageSection } from './StageSection'
 
 interface UserStoriesSectionProps {
@@ -16,7 +19,9 @@ export function UserStoriesSection({ version, onUpdated }: UserStoriesSectionPro
   const epics = version.epics ?? []
   const userStories = version.userStories ?? []
   const state = stageState('userStories', version.status)
+  const queryClient = useQueryClient()
   const generateUserStories = useGenerateUserStories()
+  const updateUserStory = useUpdateUserStory()
 
   const epicIds = epics.map((epic) => String(epic.id))
 
@@ -24,6 +29,25 @@ export function UserStoriesSection({ version, onUpdated }: UserStoriesSectionPro
     generateUserStories.mutate(
       { projectId: version.projectId!, versionNumber: version.versionNumber! },
       { onSuccess: onUpdated },
+    )
+  }
+
+  function handleSave(userStoryId: number, values: Record<string, string>, onSaved: () => void) {
+    updateUserStory.mutate(
+      {
+        userStoryId,
+        data: {
+          title: values.title,
+          description: values.description,
+          acceptanceCriteria: values.acceptanceCriteria,
+        },
+      },
+      {
+        onSuccess: (updated) => {
+          patchVersionArrayItem(queryClient, version.projectId!, version.versionNumber!, 'userStories', updated)
+          onSaved()
+        },
+      },
     )
   }
 
@@ -60,7 +84,25 @@ export function UserStoriesSection({ version, onUpdated }: UserStoriesSectionPro
                 <ul className="flex flex-col gap-2 pl-6">
                   {stories.map((story) => (
                     <li key={story.id} className="flex flex-col gap-1 rounded-md border p-3">
-                      <span className="font-medium">{story.title}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{story.title}</span>
+                        <EditItemDialog
+                          itemLabel="user story"
+                          fields={[
+                            { key: 'title', label: 'Title' },
+                            { key: 'description', label: 'Description', multiline: true },
+                            { key: 'acceptanceCriteria', label: 'Acceptance criteria', multiline: true },
+                          ]}
+                          values={{
+                            title: story.title ?? '',
+                            description: story.description ?? '',
+                            acceptanceCriteria: story.acceptanceCriteria ?? '',
+                          }}
+                          onSave={(values, onSaved) => handleSave(story.id!, values, onSaved)}
+                          isPending={updateUserStory.isPending}
+                          isError={updateUserStory.isError}
+                        />
+                      </div>
                       <p className="text-muted-foreground text-sm">{story.description}</p>
                       {story.acceptanceCriteria && (
                         <p className="text-muted-foreground text-xs">

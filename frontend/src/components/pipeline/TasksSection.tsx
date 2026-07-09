@@ -1,10 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CheckSquare2, Layers } from 'lucide-react'
-import { useGenerateTasks } from '@/api/generated'
+import { useGenerateTasks, useUpdateTask } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { patchVersionArrayItem } from '@/lib/cache'
 import { stageState } from '@/lib/pipeline'
+import { EditItemDialog } from './EditItemDialog'
 import { StageSection } from './StageSection'
 
 interface TasksSectionProps {
@@ -23,7 +26,9 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
   const userStories = version.userStories ?? []
   const tasks = version.tasks ?? []
   const state = stageState('tasks', version.status)
+  const queryClient = useQueryClient()
   const generateTasks = useGenerateTasks()
+  const updateTask = useUpdateTask()
 
   const epicIds = epics.map((epic) => String(epic.id))
 
@@ -31,6 +36,18 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
     generateTasks.mutate(
       { projectId: version.projectId!, versionNumber: version.versionNumber! },
       { onSuccess: onUpdated },
+    )
+  }
+
+  function handleSave(taskId: number, values: Record<string, string>, onSaved: () => void) {
+    updateTask.mutate(
+      { taskId, data: { title: values.title, description: values.description } },
+      {
+        onSuccess: (updated) => {
+          patchVersionArrayItem(queryClient, version.projectId!, version.versionNumber!, 'tasks', updated)
+          onSaved()
+        },
+      },
     )
   }
 
@@ -94,6 +111,17 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
                                     <Badge variant={PRIORITY_VARIANT[task.priority] ?? 'outline'}>{task.priority}</Badge>
                                   )}
                                   {task.effortEstimate && <Badge variant="outline">Effort: {task.effortEstimate}</Badge>}
+                                  <EditItemDialog
+                                    itemLabel="task"
+                                    fields={[
+                                      { key: 'title', label: 'Title' },
+                                      { key: 'description', label: 'Description', multiline: true },
+                                    ]}
+                                    values={{ title: task.title ?? '', description: task.description ?? '' }}
+                                    onSave={(values, onSaved) => handleSave(task.id!, values, onSaved)}
+                                    isPending={updateTask.isPending}
+                                    isError={updateTask.isError}
+                                  />
                                 </div>
                                 <p className="text-muted-foreground text-sm">{task.description}</p>
                               </li>
