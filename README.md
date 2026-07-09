@@ -24,6 +24,8 @@ The project is designed to explore backend architecture, AI integration, and pro
 - Docker-based local development
 - Input validation
 - Architecture documentation
+- React frontend covering the full pipeline, with a hierarchical Epic → User Story → Task view
+- Light / dark / system theme support
 
 ---
 
@@ -31,7 +33,7 @@ The project is designed to explore backend architecture, AI integration, and pro
 
 ```
                   +----------------+
-                  |     Client     |
+                  | React Frontend |
                   +-------+--------+
                           |
                           v
@@ -63,6 +65,8 @@ BlueForge follows a layered architecture where each layer has a single responsib
 
 ## Technology Stack
 
+### Backend
+
 | Category | Technology |
 |----------|------------|
 | Language | Java 21 |
@@ -75,6 +79,18 @@ BlueForge follows a layered architecture where each layer has a single responsib
 | Testing | JUnit 5 |
 | Containerization | Docker |
 
+### Frontend
+
+| Category | Technology |
+|----------|------------|
+| Language | TypeScript |
+| Framework | React 19 + Vite |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Routing | React Router |
+| Server state | TanStack Query |
+| API client | Generated from the backend's OpenAPI spec via `orval` |
+| Testing | Vitest + React Testing Library |
+
 ---
 
 ## Project Structure
@@ -85,6 +101,7 @@ src
 │   ├── java
 │   │   └── com.blueforge
 │   │       ├── ai
+│   │       ├── config
 │   │       ├── controller
 │   │       ├── dto
 │   │       ├── entity
@@ -98,6 +115,16 @@ src
 │       └── prompts
 │
 └── test
+
+frontend
+└── src
+    ├── api            # generated API client + TanStack Query hooks
+    ├── components
+    │   ├── layout
+    │   ├── pipeline    # per-stage sections (Questions, Requirements, Epics, ...)
+    │   └── ui          # shadcn/ui primitives
+    ├── lib             # pipeline state derivation, recent-projects storage
+    └── pages           # NewIdeaPage, WorkspacePage
 
 docs
 └── architecture
@@ -245,6 +272,28 @@ http://localhost:8080/v3/api-docs
 
 ---
 
+## Frontend
+
+A React frontend covers the full pipeline end to end — submit an idea,
+answer the clarifying questions, then generate and browse Requirements,
+Epics, User Stories, and Tasks as an expandable hierarchy.
+
+> **Screenshots**: pending. To capture them: run both the backend and the
+> frontend (see below), walk through the pipeline for one project, and save
+> screenshots of the New Idea page and the Workspace page (light and dark)
+> into `docs/screenshots/`, then reference them here.
+
+Key characteristics:
+
+- The UI's state (which stage is locked/current/done) is derived directly
+  from the backend's `ProjectVersionResponse.status` — no separate frontend
+  wizard state to keep in sync.
+- The API client is generated from the backend's live OpenAPI spec
+  (`npm run generate:api`), so frontend types can't drift from the Java DTOs.
+- Light / dark / system theme, persisted in `localStorage`.
+
+---
+
 ## Running Locally
 
 Clone the repository.
@@ -267,29 +316,48 @@ OPENROUTER_API_KEY=your_api_key
 OPENROUTER_MODEL=your_model
 ```
 
-Run the application.
+Run the backend.
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
+Run the frontend (in a separate terminal).
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend runs at `http://localhost:5173` and expects the backend at
+`http://localhost:8080` by default (override via `VITE_API_BASE_URL` in a
+`frontend/.env` file — see `frontend/.env.example`).
+
 ---
 
 ## Testing
 
-Run the complete test suite.
+Run the backend test suite.
 
 ```bash
 ./mvnw verify
 ```
 
-Current test coverage includes:
+Current backend test coverage includes:
 
 - Service layer tests
 - Controller tests
 - AI client tests
 - Persistence verification
 - Transaction rollback verification
+
+Run the frontend test suite.
+
+```bash
+cd frontend
+npm test
+```
 
 ---
 
@@ -338,12 +406,18 @@ docs/architecture
 
 - Task generation
 
+### Sprint 6
+
+- React frontend covering the full pipeline
+- Hierarchical Epic → User Story → Task visualization
+- Blue-centered visual identity, custom logo, light/dark/system theme
+
 ### Later
 
-- Architecture recommendations
-- Frontend application
-- Authentication
-- Export support
+- Sprint 7: Browse + Edit APIs (list projects/versions, edit generated content)
+- Sprint 8: Authentication & authorization
+- Sprint 9: Export support (Markdown/PDF, then Jira/GitHub integrations)
+- Sprint 10: Regeneration of individual entities
 
 ---
 
@@ -351,15 +425,15 @@ docs/architecture
 
 Current version:
 
-**v0.5.0**
+**v0.6.0**
 
-Sprints 1 through 5 have been completed. The full planning pipeline is implemented end to end:
+Sprints 1 through 6 have been completed. The full planning pipeline is implemented end to end, backend and frontend:
 
 ```
 Project → Clarifying Questions → Answers → Requirements → Epics → User Stories → Tasks
 ```
 
-The application currently supports idea submission, AI-assisted clarification, requirement generation, epic generation, user story generation (with acceptance criteria), task generation (with priority and effort estimate), project versioning, and retrieval. Each pipeline stage is exposed as its own endpoint and tracked via its own project version status.
+The application currently supports idea submission, AI-assisted clarification, requirement generation, epic generation, user story generation (with acceptance criteria), task generation (with priority and effort estimate), project versioning, and retrieval — all through a React frontend as well as the REST API directly. Each pipeline stage is exposed as its own endpoint and tracked via its own project version status.
 
 ---
 
