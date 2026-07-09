@@ -189,7 +189,8 @@ class ProjectServiceTest {
 
         Project project = new Project("Test Project");
         project.setId(1L);
-        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.DRAFT);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
         version.setId(10L);
 
         when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));

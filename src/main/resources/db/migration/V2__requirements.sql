@@ -19,7 +19,7 @@ BEGIN
 END $$;
 
 ALTER TABLE project_version ADD CONSTRAINT project_version_status_check
-    CHECK (status IN ('DRAFT', 'AWAITING_ANSWERS', 'REQUIREMENTS_GENERATED'));
+    CHECK (status IN ('AWAITING_ANSWERS', 'REQUIREMENTS_GENERATED'));
 
 CREATE TABLE clarifying_answer (
     id                      BIGSERIAL PRIMARY KEY,
