@@ -15,6 +15,7 @@ The project is designed to explore backend architecture, AI integration, and pro
 - Submit answers and generate functional/non-functional requirements
 - Generate epics from requirements
 - Generate user stories (with acceptance criteria) from epics
+- Generate engineering tasks (with priority and effort estimate) from user stories
 - Version project planning sessions, with each pipeline stage tracked via status
 - Retrieve previous project versions
 - Provider-independent AI abstraction
@@ -134,6 +135,12 @@ POST .../user-stories
 Generate user stories
         │
         ▼
+POST .../tasks
+        │
+        ▼
+Generate tasks
+        │
+        ▼
 Retrieve project version
 ```
 
@@ -209,6 +216,16 @@ POST /api/projects/{projectId}/versions/{versionNumber}/user-stories
 ```
 
 Generates user stories (with acceptance criteria) for every epic in the version, in a single AI call.
+
+---
+
+### Generate Tasks
+
+```
+POST /api/projects/{projectId}/versions/{versionNumber}/tasks
+```
+
+Generates engineering tasks (with priority and effort estimate) for every user story in the version, making one AI call per epic.
 
 ---
 
@@ -317,7 +334,7 @@ docs/architecture
 
 - User story generation
 
-### Sprint 5 (planned)
+### Sprint 5
 
 - Task generation
 
@@ -334,11 +351,15 @@ docs/architecture
 
 Current version:
 
-**v0.4.0**
+**v0.5.0**
 
-Sprints 1 through 4 have been completed.
+Sprints 1 through 5 have been completed. The full planning pipeline is implemented end to end:
 
-The application currently supports idea submission, AI-assisted clarification, requirement generation, epic generation, user story generation (with acceptance criteria), project versioning, and retrieval. Each pipeline stage is exposed as its own endpoint and tracked via its own project version status.
+```
+Project → Clarifying Questions → Answers → Requirements → Epics → User Stories → Tasks
+```
+
+The application currently supports idea submission, AI-assisted clarification, requirement generation, epic generation, user story generation (with acceptance criteria), task generation (with priority and effort estimate), project versioning, and retrieval. Each pipeline stage is exposed as its own endpoint and tracked via its own project version status.
 
 ---
 
