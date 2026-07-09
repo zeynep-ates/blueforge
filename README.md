@@ -331,6 +331,8 @@ OPENROUTER_API_KEY=your_api_key
 OPENROUTER_MODEL=your_model
 ```
 
+OpenRouter's free-tier model slugs are periodically discontinued or rate-limited upstream (see `docs/architecture/sprint-1-summary.md`). If AI calls start failing with a 502, check whether `OPENROUTER_MODEL` (default: `google/gemma-4-26b-a4b-it:free`) is still listed at [openrouter.ai/models](https://openrouter.ai/models) and swap in a currently-available `:free` slug.
+
 Run the backend.
 
 ```bash
