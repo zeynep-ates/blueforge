@@ -1,31 +1,83 @@
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F)
+![React](https://img.shields.io/badge/React-19-61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
 # BlueForge
 
-BlueForge is a software planning platform built with Java and Spring Boot that helps transform early-stage product ideas into structured technical plans.
+BlueForge is an AI-powered software planning platform built with Java, Spring Boot, and React.
 
-Instead of generating an entire specification from a single prompt, BlueForge follows an iterative planning workflow. It asks clarifying questions, captures missing requirements, versions every planning step, and gradually builds a more complete project specification.
+Instead of generating an entire specification from a single prompt, BlueForge follows an iterative planning workflow. It asks clarifying questions, captures missing requirements, versions every planning step, and gradually transforms an idea into structured technical artifacts.
 
-The project is designed to explore backend architecture, AI integration, and production-oriented software engineering practices.
+The project focuses on clean architecture, AI integration, and production-oriented software engineering practices.
 
 ---
 
-## Current Features
+## Features
+
+### AI Planning Pipeline
 
 - Create software projects from natural language descriptions
 - Generate AI-powered clarifying questions
-- Submit answers and generate functional/non-functional requirements
+- Generate functional and non-functional requirements
 - Generate epics from requirements
-- Generate user stories (with acceptance criteria) from epics
-- Generate engineering tasks (with priority and effort estimate) from user stories
-- Version project planning sessions, with each pipeline stage tracked via status
-- Retrieve previous project versions
+- Generate user stories with acceptance criteria
+- Generate engineering tasks with priority and effort estimates
+- Version every planning stage
+
+### Backend
+
+- Layered Spring Boot architecture
 - Provider-independent AI abstraction
-- Transaction-safe persistence at every stage
+- Transaction-safe persistence
 - Flyway database migrations
-- Docker-based local development
 - Input validation
-- Architecture documentation
-- React frontend covering the full pipeline, with a hierarchical Epic → User Story → Task view
-- Light / dark / system theme support
+- Swagger / OpenAPI documentation
+- Docker-based local development
+
+### Frontend
+
+- React + TypeScript + Vite
+- Responsive workspace
+- Hierarchical Epic → User Story → Task visualization
+- Light / Dark / System theme
+- Recent Projects
+- OpenAPI-generated API client
+- TanStack Query
+
+---
+
+## Screenshots
+
+### Home
+
+![Home](docs/screenshots/1-home-light.png)
+
+### Clarifying Questions
+
+![Questions](docs/screenshots/2-questions.png)
+
+### Dark Mode
+
+![Dark Mode](docs/screenshots/3-questions-dark.png)
+
+### Requirements
+
+![Requirements](docs/screenshots/4-requirements.png)
+
+### User Stories
+
+![User Stories](docs/screenshots/5-stories.png)
+
+### Tasks
+
+![Tasks](docs/screenshots/6-tasks.png)
+
+### Home (Dark Mode)
+
+![Home Dark](docs/screenshots/7-home-dark.png)
 
 ---
 
@@ -36,20 +88,20 @@ The project is designed to explore backend architecture, AI integration, and pro
                   | React Frontend |
                   +-------+--------+
                           |
-                          v
+                          ▼
                  Spring Boot REST API
                           |
                 +---------+---------+
                 |                   |
-                v                   v
-          Application Service    AI Client
+                ▼                   ▼
+        Application Services    AI Client
                 |                   |
-                |             OpenRouter
+                |               OpenRouter
                 |
-                v
-          Spring Data JPA
+                ▼
+        Spring Data JPA
                 |
-                v
+                ▼
             PostgreSQL
 ```
 
@@ -87,9 +139,34 @@ BlueForge follows a layered architecture where each layer has a single responsib
 | Framework | React 19 + Vite |
 | Styling | Tailwind CSS v4 + shadcn/ui |
 | Routing | React Router |
-| Server state | TanStack Query |
-| API client | Generated from the backend's OpenAPI spec via `orval` |
+| Server State | TanStack Query |
+| API Client | Orval (OpenAPI Code Generation) |
 | Testing | Vitest + React Testing Library |
+
+---
+
+## Workflow
+
+```
+Idea
+  │
+  ▼
+Clarifying Questions
+  │
+  ▼
+Requirements
+  │
+  ▼
+Epics
+  │
+  ▼
+User Stories
+  │
+  ▼
+Tasks
+```
+
+Each stage has its own endpoint, AI prompt, persistence model, and project version status.
 
 ---
 
@@ -118,60 +195,14 @@ src
 
 frontend
 └── src
-    ├── api            # generated API client + TanStack Query hooks
+    ├── api
     ├── components
-    │   ├── layout
-    │   ├── pipeline    # per-stage sections (Questions, Requirements, Epics, ...)
-    │   └── ui          # shadcn/ui primitives
-    ├── lib             # pipeline state derivation, recent-projects storage
-    └── pages           # NewIdeaPage, WorkspacePage
+    ├── lib
+    └── pages
 
 docs
 └── architecture
 ```
-
----
-
-## Workflow
-
-```
-User submits an idea
-        │
-        ▼
-POST /api/projects
-        │
-        ▼
-Generate clarifying questions
-        │
-        ▼
-POST .../answers
-        │
-        ▼
-Generate requirements
-        │
-        ▼
-POST .../epics
-        │
-        ▼
-Generate epics
-        │
-        ▼
-POST .../user-stories
-        │
-        ▼
-Generate user stories
-        │
-        ▼
-POST .../tasks
-        │
-        ▼
-Generate tasks
-        │
-        ▼
-Retrieve project version
-```
-
-Each stage has its own endpoint, its own AI prompt, and its own persistence model. A project version tracks which stage it has reached and only allows the next stage to run once the previous one has completed.
 
 ---
 
@@ -183,38 +214,11 @@ Each stage has its own endpoint, its own AI prompt, and its own persistence mode
 POST /api/projects
 ```
 
-Request
-
-```json
-{
-  "name": "BlueForge",
-  "ideaDescription": "A platform that transforms software ideas into technical plans."
-}
-```
-
-Response
-
-```json
-{
-  "projectId": 1,
-  "versionId": 1,
-  "questions": [
-    "Who are the primary users?",
-    "Will authentication be required?",
-    "Should multiple users collaborate on the same project?"
-  ]
-}
-```
-
----
-
 ### Get Project Version
 
 ```
 GET /api/projects/{projectId}/versions/{versionNumber}
 ```
-
----
 
 ### Submit Answers
 
@@ -222,19 +226,11 @@ GET /api/projects/{projectId}/versions/{versionNumber}
 POST /api/projects/{projectId}/versions/{versionNumber}/answers
 ```
 
-Persists answers to the clarifying questions and synchronously generates requirements.
-
----
-
 ### Generate Epics
 
 ```
 POST /api/projects/{projectId}/versions/{versionNumber}/epics
 ```
-
-Generates epics from the version's requirements.
-
----
 
 ### Generate User Stories
 
@@ -242,58 +238,23 @@ Generates epics from the version's requirements.
 POST /api/projects/{projectId}/versions/{versionNumber}/user-stories
 ```
 
-Generates user stories (with acceptance criteria) for every epic in the version, in a single AI call.
-
----
-
 ### Generate Tasks
 
 ```
 POST /api/projects/{projectId}/versions/{versionNumber}/tasks
 ```
 
-Generates engineering tasks (with priority and effort estimate) for every user story in the version, making one AI call per epic.
-
----
-
-## API Documentation
-
-Once the application is running, interactive Swagger UI is available at:
+Interactive API documentation:
 
 ```
 http://localhost:8080/swagger-ui/index.html
 ```
 
-The raw OpenAPI spec is available at:
+OpenAPI specification:
 
 ```
 http://localhost:8080/v3/api-docs
 ```
-
----
-
-## Frontend
-
-A React frontend covers the full pipeline end to end — submit an idea,
-answer the clarifying questions, then generate and browse Requirements,
-Epics, User Stories, and Tasks as an expandable hierarchy.
-
-<!-- TODO: capture these screenshots (see docs/screenshots/README.md for
-     exactly what to capture) and uncomment.
-![Home page (light mode)](docs/screenshots/home-light.png)
-![Workspace (light mode)](docs/screenshots/workspace-light.png)
-![Workspace (dark mode)](docs/screenshots/workspace-dark.png)
-![Mobile view](docs/screenshots/mobile.png)
--->
-
-Key characteristics:
-
-- The UI's state (which stage is locked/current/done) is derived directly
-  from the backend's `ProjectVersionResponse.status` — no separate frontend
-  wizard state to keep in sync.
-- The API client is generated from the backend's live OpenAPI spec
-  (`npm run generate:api`), so frontend types can't drift from the Java DTOs.
-- Light / dark / system theme, persisted in `localStorage`.
 
 ---
 
@@ -312,7 +273,7 @@ Start PostgreSQL.
 docker compose up -d
 ```
 
-Configure the required environment variables.
+Configure environment variables.
 
 ```text
 OPENROUTER_API_KEY=your_api_key
@@ -325,7 +286,7 @@ Run the backend.
 ./mvnw spring-boot:run
 ```
 
-Run the frontend (in a separate terminal).
+Run the frontend.
 
 ```bash
 cd frontend
@@ -333,29 +294,29 @@ npm install
 npm run dev
 ```
 
-The frontend runs at `http://localhost:5173` and expects the backend at
-`http://localhost:8080` by default (override via `VITE_API_BASE_URL` in a
-`frontend/.env` file — see `frontend/.env.example`).
+Frontend:
+
+```
+http://localhost:5173
+```
+
+Backend:
+
+```
+http://localhost:8080
+```
 
 ---
 
 ## Testing
 
-Run the backend test suite.
+Backend:
 
 ```bash
 ./mvnw verify
 ```
 
-Current backend test coverage includes:
-
-- Service layer tests
-- Controller tests
-- AI client tests
-- Persistence verification
-- Transaction rollback verification
-
-Run the frontend test suite.
+Frontend:
 
 ```bash
 cd frontend
@@ -366,16 +327,15 @@ npm test
 
 ## Design Decisions
 
-Some of the architectural decisions made during development include:
-
 - Flyway is the single source of truth for the database schema.
 - Hibernate validates the schema instead of generating it.
 - AI providers are isolated behind a common interface.
 - Prompt templates are stored outside Java code.
 - DTOs are separated from persistence entities.
 - Database operations are transactional to guarantee consistency.
+- Frontend API types are generated directly from the backend's OpenAPI specification.
 
-Additional documentation is available under:
+Additional documentation is available in:
 
 ```
 docs/architecture
@@ -383,69 +343,12 @@ docs/architecture
 
 ---
 
-## Development Roadmap
-
-### Sprint 1
-
-- Project creation
-- Clarifying question generation
-- Version retrieval
-
-### Sprint 2
-
-- Answer clarification questions
-- Requirement generation
-- Swagger / OpenAPI
-
-### Sprint 3
-
-- Epic generation
-
-### Sprint 4
-
-- User story generation
-
-### Sprint 5
-
-- Task generation
-
-### Sprint 6
-
-- React frontend covering the full pipeline
-- Hierarchical Epic → User Story → Task visualization
-- Blue-centered visual identity, custom logo, light/dark/system theme
-
-### Later
-
-- Sprint 7: Browse + Edit APIs (list projects/versions, edit generated content)
-- Sprint 8: Authentication & authorization
-- Sprint 9: Export support (Markdown/PDF, then Jira/GitHub integrations)
-- Sprint 10: Regeneration of individual entities
-
----
-
-## Project Status
-
-Current version:
-
-**v0.6.0**
-
-Sprints 1 through 6 have been completed. The full planning pipeline is implemented end to end, backend and frontend:
-
-```
-Project → Clarifying Questions → Answers → Requirements → Epics → User Stories → Tasks
-```
-
-The application currently supports idea submission, AI-assisted clarification, requirement generation, epic generation, user story generation (with acceptance criteria), task generation (with priority and effort estimate), project versioning, and retrieval — all through a React frontend as well as the REST API directly. Each pipeline stage is exposed as its own endpoint and tracked via its own project version status.
-
----
-
 ## Author
 
 **Zeynep Ateş**
 
-Management Information Systems Graduate
+Backend Developer
 
-Backend Developer focused on Java, Spring Boot, and AI-powered backend systems.
+Java • Spring Boot • React • AI Systems
 
 GitHub: https://github.com/zeynep-ates
