@@ -2,6 +2,37 @@
 
 All notable changes to BlueForge are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `GET /api/projects/{projectId}/versions/{fromVersion}/diff/{toVersion}` —
+  compares two versions of the same project, returning which Requirements,
+  Epics, User Stories, and Tasks were added, removed, or modified between
+  them, plus a `summary` block (added/removed/modified/unchanged counts) so
+  future timeline/history views don't need to walk the whole tree just to
+  show basic stats.
+- Matching is positional (by `orderIndex`, hierarchical: Requirements and
+  Epics at the top level, User Stories matched within their Epic pair,
+  Tasks matched within their User Story pair) via a new `VersionEntityMatcher`
+  interface / `PositionalEntityMatcher` implementation — the same
+  interface-plus-implementation shape already used for `AiClient` /
+  `OpenRouterAiClient`. A future lineage-based matcher (tracking clone
+  provenance) can replace it without changing `VersionDiffService`,
+  `EntityDiffBuilder`, or the response DTOs.
+- `changeDescription` added to `ProjectVersionSummaryResponse` so the
+  version picker can show why a version exists (e.g. "Regenerated from v1:
+  ...").
+- "Compare versions" control on the project detail page (two `Select`
+  dropdowns, defaulting to the two most recent versions) and a new
+  `VersionDiffPage` rendering the comparison — Requirements as a flat list,
+  Epics as a nested accordion (Epic → User Stories → Tasks), each entry
+  color-coded by change type. The frontend only calls the diff endpoint and
+  renders the response; no comparison logic lives in React.
+
+No Flyway migration was needed — the feature reuses the existing entity
+model and adds no new columns.
+
 ## [0.9.0] - 2026-07-09
 
 ### Added
