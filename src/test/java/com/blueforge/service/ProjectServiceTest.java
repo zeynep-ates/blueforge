@@ -12,7 +12,10 @@ import com.blueforge.ai.AiClient;
 import com.blueforge.dto.AnswerRequest;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
+import com.blueforge.dto.ProjectDetailResponse;
+import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
+import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
@@ -28,6 +31,7 @@ import com.blueforge.entity.UserStory;
 import com.blueforge.repository.ProjectRepository;
 import com.blueforge.repository.ProjectVersionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -744,5 +748,93 @@ class ProjectServiceTest {
 
         assertThatThrownBy(() -> projectService.generateTasks(1L, 1))
                 .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void listProjectsReturnsSummariesWithLatestVersion() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        project.setCreatedAt(Instant.parse("2026-07-01T00:00:00Z"));
+        ProjectVersion v1 = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        v1.setId(10L);
+        ProjectVersion v2 = new ProjectVersion(project, 2, "A refined idea", ProjectVersionStatus.AWAITING_ANSWERS);
+        v2.setId(11L);
+
+        when(projectRepository.findAll()).thenReturn(List.of(project));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(v1, v2));
+
+        List<ProjectSummaryResponse> response = projectService.listProjects();
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).id()).isEqualTo(1L);
+        assertThat(response.get(0).name()).isEqualTo("Test Project");
+        assertThat(response.get(0).latestVersionNumber()).isEqualTo(2);
+        assertThat(response.get(0).latestStatus()).isEqualTo(ProjectVersionStatus.AWAITING_ANSWERS);
+    }
+
+    @Test
+    void getProjectReturnsDetailWithOrderedVersions() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        project.setCreatedAt(Instant.parse("2026-07-01T00:00:00Z"));
+        ProjectVersion v1 = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        v1.setId(10L);
+        ProjectVersion v2 = new ProjectVersion(project, 2, "A refined idea", ProjectVersionStatus.AWAITING_ANSWERS);
+        v2.setId(11L);
+
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(v1, v2));
+
+        ProjectDetailResponse response = projectService.getProject(1L);
+
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.name()).isEqualTo("Test Project");
+        assertThat(response.versions()).hasSize(2);
+        assertThat(response.versions().get(0).versionNumber()).isEqualTo(1);
+        assertThat(response.versions().get(1).versionNumber()).isEqualTo(2);
+        assertThat(response.versions().get(1).status()).isEqualTo(ProjectVersionStatus.AWAITING_ANSWERS);
+    }
+
+    @Test
+    void getProjectThrowsNotFoundWhenMissing() {
+        projectService = newService();
+
+        when(projectRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.getProject(1L)).isInstanceOf(ProjectNotFoundException.class);
+    }
+
+    @Test
+    void listVersionsReturnsOrderedVersionSummaries() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion v1 = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        v1.setId(10L);
+        ProjectVersion v2 = new ProjectVersion(project, 2, "A refined idea", ProjectVersionStatus.AWAITING_ANSWERS);
+        v2.setId(11L);
+
+        when(projectRepository.existsById(1L)).thenReturn(true);
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(v1, v2));
+
+        List<ProjectVersionSummaryResponse> response = projectService.listVersions(1L);
+
+        assertThat(response).hasSize(2);
+        assertThat(response.get(0).versionId()).isEqualTo(10L);
+        assertThat(response.get(1).versionId()).isEqualTo(11L);
+    }
+
+    @Test
+    void listVersionsThrowsNotFoundWhenProjectMissing() {
+        projectService = newService();
+
+        when(projectRepository.existsById(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> projectService.listVersions(1L)).isInstanceOf(ProjectNotFoundException.class);
     }
 }

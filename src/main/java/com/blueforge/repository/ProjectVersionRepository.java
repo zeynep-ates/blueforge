@@ -1,6 +1,7 @@
 package com.blueforge.repository;
 
 import com.blueforge.entity.ProjectVersion;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +18,6 @@ public interface ProjectVersionRepository extends JpaRepository<ProjectVersion, 
             """)
     Optional<ProjectVersion> findByProjectIdAndVersionNumber(
             @Param("projectId") Long projectId, @Param("versionNumber") int versionNumber);
+
+    List<ProjectVersion> findByProjectIdOrderByVersionNumberAsc(Long projectId);
 }

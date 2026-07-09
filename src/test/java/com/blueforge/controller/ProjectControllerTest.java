@@ -15,7 +15,10 @@ import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
 import com.blueforge.dto.EpicResponse;
+import com.blueforge.dto.ProjectDetailResponse;
+import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
+import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.TaskResponse;
@@ -26,9 +29,11 @@ import com.blueforge.entity.TaskEffort;
 import com.blueforge.entity.TaskPriority;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
+import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectService;
 import com.blueforge.service.ProjectVersionNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -325,5 +330,65 @@ class ProjectControllerTest {
         when(projectService.generateTasks(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
 
         mockMvc.perform(post("/api/projects/1/versions/1/tasks")).andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void listProjectsReturnsOkWithBody() throws Exception {
+        when(projectService.listProjects())
+                .thenReturn(List.of(new ProjectSummaryResponse(
+                        1L, "Test Project", Instant.parse("2026-07-01T00:00:00Z"), 1,
+                        ProjectVersionStatus.AWAITING_ANSWERS)));
+
+        mockMvc.perform(get("/api/projects"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id", is(1)))
+                .andExpect(jsonPath("$[0].name", is("Test Project")))
+                .andExpect(jsonPath("$[0].latestVersionNumber", is(1)))
+                .andExpect(jsonPath("$[0].latestStatus", is("AWAITING_ANSWERS")));
+    }
+
+    @Test
+    void getProjectReturnsOkWithBody() throws Exception {
+        when(projectService.getProject(eq(1L)))
+                .thenReturn(new ProjectDetailResponse(
+                        1L,
+                        "Test Project",
+                        Instant.parse("2026-07-01T00:00:00Z"),
+                        List.of(new ProjectVersionSummaryResponse(10L, 1, ProjectVersionStatus.AWAITING_ANSWERS))));
+
+        mockMvc.perform(get("/api/projects/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Test Project")))
+                .andExpect(jsonPath("$.versions[0].versionId", is(10)))
+                .andExpect(jsonPath("$.versions[0].versionNumber", is(1)));
+    }
+
+    @Test
+    void getProjectReturnsNotFoundWhenMissing() throws Exception {
+        when(projectService.getProject(eq(1L))).thenThrow(new ProjectNotFoundException(1L));
+
+        mockMvc.perform(get("/api/projects/1")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listVersionsReturnsOkWithBody() throws Exception {
+        when(projectService.listVersions(eq(1L)))
+                .thenReturn(List.of(
+                        new ProjectVersionSummaryResponse(10L, 1, ProjectVersionStatus.AWAITING_ANSWERS),
+                        new ProjectVersionSummaryResponse(11L, 2, ProjectVersionStatus.TASKS_GENERATED)));
+
+        mockMvc.perform(get("/api/projects/1/versions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].versionNumber", is(1)))
+                .andExpect(jsonPath("$[1].versionNumber", is(2)))
+                .andExpect(jsonPath("$[1].status", is("TASKS_GENERATED")));
+    }
+
+    @Test
+    void listVersionsReturnsNotFoundWhenProjectMissing() throws Exception {
+        when(projectService.listVersions(eq(1L))).thenThrow(new ProjectNotFoundException(1L));
+
+        mockMvc.perform(get("/api/projects/1/versions")).andExpect(status().isNotFound());
     }
 }

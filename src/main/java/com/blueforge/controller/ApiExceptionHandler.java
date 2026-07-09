@@ -4,6 +4,7 @@ import com.blueforge.ai.AiClientException;
 import com.blueforge.service.AiResponseParsingException;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
+import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectVersionNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +20,8 @@ public class ApiExceptionHandler {
                 .body(new ErrorResponse("The AI service failed to produce a usable response. Please try again."));
     }
 
-    @ExceptionHandler(ProjectVersionNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(ProjectVersionNotFoundException e) {
+    @ExceptionHandler({ProjectNotFoundException.class, ProjectVersionNotFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(e.getMessage()));
     }
 

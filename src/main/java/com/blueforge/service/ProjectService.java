@@ -6,7 +6,10 @@ import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
 import com.blueforge.dto.EpicResponse;
+import com.blueforge.dto.ProjectDetailResponse;
+import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
+import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.TaskResponse;
@@ -94,6 +97,36 @@ public class ProjectService {
                 .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
 
         return toProjectVersionResponse(projectId, version);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectSummaryResponse> listProjects() {
+        return projectRepository.findAll().stream().map(this::toProjectSummaryResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectDetailResponse getProject(Long projectId) {
+        Project project =
+                projectRepository.findById(projectId).orElseThrow(() -> new ProjectNotFoundException(projectId));
+
+        List<ProjectVersionSummaryResponse> versions = projectVersionRepository
+                .findByProjectIdOrderByVersionNumberAsc(projectId)
+                .stream()
+                .map(ProjectService::toProjectVersionSummaryResponse)
+                .toList();
+
+        return new ProjectDetailResponse(project.getId(), project.getName(), project.getCreatedAt(), versions);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectVersionSummaryResponse> listVersions(Long projectId) {
+        if (!projectRepository.existsById(projectId)) {
+            throw new ProjectNotFoundException(projectId);
+        }
+
+        return projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(projectId).stream()
+                .map(ProjectService::toProjectVersionSummaryResponse)
+                .toList();
     }
 
     @Transactional
@@ -278,6 +311,17 @@ public class ProjectService {
                 toEpicResponses(version),
                 toUserStoryResponses(version),
                 toTaskResponses(version));
+    }
+
+    private ProjectSummaryResponse toProjectSummaryResponse(Project project) {
+        List<ProjectVersion> versions = projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(project.getId());
+        ProjectVersion latest = versions.get(versions.size() - 1);
+        return new ProjectSummaryResponse(
+                project.getId(), project.getName(), project.getCreatedAt(), latest.getVersionNumber(), latest.getStatus());
+    }
+
+    private static ProjectVersionSummaryResponse toProjectVersionSummaryResponse(ProjectVersion version) {
+        return new ProjectVersionSummaryResponse(version.getId(), version.getVersionNumber(), version.getStatus());
     }
 
     private static List<ClarifyingQuestionResponse> toQuestionResponses(ProjectVersion version) {

@@ -2,10 +2,14 @@ package com.blueforge.controller;
 
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
+import com.blueforge.dto.ProjectDetailResponse;
+import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
+import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.service.ProjectService;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,6 +37,21 @@ public class ProjectController {
     public ResponseEntity<ProjectVersionResponse> getProjectVersion(
             @PathVariable Long projectId, @PathVariable int versionNumber) {
         return ResponseEntity.ok(projectService.getProjectVersion(projectId, versionNumber));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ProjectSummaryResponse>> listProjects() {
+        return ResponseEntity.ok(projectService.listProjects());
+    }
+
+    @GetMapping("/{projectId}")
+    public ResponseEntity<ProjectDetailResponse> getProject(@PathVariable Long projectId) {
+        return ResponseEntity.ok(projectService.getProject(projectId));
+    }
+
+    @GetMapping("/{projectId}/versions")
+    public ResponseEntity<List<ProjectVersionSummaryResponse>> listVersions(@PathVariable Long projectId) {
+        return ResponseEntity.ok(projectService.listVersions(projectId));
     }
 
     @PostMapping("/{projectId}/versions/{versionNumber}/answers")
