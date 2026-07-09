@@ -27,6 +27,12 @@ The project focuses on clean architecture, AI integration, and production-orient
 - Generate engineering tasks with priority and effort estimates
 - Version every planning stage
 
+### Editing
+
+- Edit the title and description of generated Requirements, Epics, and Tasks
+- Edit the title, description, and acceptance criteria of generated User Stories
+- Changes save immediately via dedicated PATCH endpoints, no regeneration required
+
 ### Backend
 
 - Layered Spring Boot architecture
@@ -44,6 +50,7 @@ The project focuses on clean architecture, AI integration, and production-orient
 - Hierarchical Epic → User Story → Task visualization
 - Light / Dark / System theme
 - Recent Projects
+- Dialog-based editing of generated artifacts
 - OpenAPI-generated API client
 - TanStack Query
 
@@ -78,6 +85,16 @@ The project focuses on clean architecture, AI integration, and production-orient
 ### Home (Dark Mode)
 
 ![Home Dark](docs/screenshots/7-home-dark.png)
+
+<!-- TODO: capture and uncomment once available.
+### Editing a Requirement
+
+![Editing a Requirement](docs/screenshots/8-edit-requirement.png)
+
+### Editing a User Story
+
+![Editing a User Story](docs/screenshots/9-edit-user-story.png)
+-->
 
 ---
 
@@ -242,6 +259,30 @@ POST /api/projects/{projectId}/versions/{versionNumber}/user-stories
 
 ```
 POST /api/projects/{projectId}/versions/{versionNumber}/tasks
+```
+
+### Edit Requirement
+
+```
+PATCH /api/requirements/{requirementId}
+```
+
+### Edit Epic
+
+```
+PATCH /api/epics/{epicId}
+```
+
+### Edit User Story
+
+```
+PATCH /api/user-stories/{userStoryId}
+```
+
+### Edit Task
+
+```
+PATCH /api/tasks/{taskId}
 ```
 
 Interactive API documentation:
