@@ -1,13 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { getGetProjectVersionQueryKey, ProjectVersionResponseStatus, useUpdateRequirement } from '@/api/generated'
+import {
+  getGetProjectVersionQueryKey,
+  ProjectVersionResponseStatus,
+  useRegenerateVersion,
+  useUpdateRequirement,
+} from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { RequirementsSection } from './RequirementsSection'
 
 vi.mock('@/api/generated', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/generated')>()),
   useUpdateRequirement: vi.fn(),
+  useRegenerateVersion: vi.fn(),
 }))
 
 const version: ProjectVersionResponse = {
@@ -28,7 +35,9 @@ const version: ProjectVersionResponse = {
 function renderSection(queryClient: QueryClient) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <RequirementsSection version={version} />
+      <MemoryRouter>
+        <RequirementsSection version={version} />
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -41,6 +50,11 @@ describe('RequirementsSection editing', () => {
       isPending: false,
       isError: false,
     } as unknown as ReturnType<typeof useUpdateRequirement>)
+    vi.mocked(useRegenerateVersion).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useRegenerateVersion>)
 
     const queryClient = new QueryClient()
     const queryKey = getGetProjectVersionQueryKey(1, 1)
@@ -62,5 +76,39 @@ describe('RequirementsSection editing', () => {
 
     const cached = queryClient.getQueryData<ProjectVersionResponse>(queryKey)
     expect(cached?.requirements?.[0].title).toBe('Updated title')
+  })
+})
+
+describe('RequirementsSection regenerating', () => {
+  it('regenerates requirements and navigates to the new version on success', () => {
+    const mutate = vi.fn((_vars, options: { onSuccess: (v: ProjectVersionResponse) => void }) =>
+      options.onSuccess({ ...version, versionId: 11, versionNumber: 2, changeDescription: 'Tried again' }),
+    )
+    vi.mocked(useUpdateRequirement).mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useUpdateRequirement>)
+    vi.mocked(useRegenerateVersion).mockReturnValue({
+      mutate,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useRegenerateVersion>)
+
+    const queryClient = new QueryClient()
+    renderSection(queryClient)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate Requirements' }))
+    fireEvent.change(screen.getByLabelText('Note (optional)'), { target: { value: 'Tried again' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+
+    expect(mutate).toHaveBeenCalledWith(
+      {
+        projectId: 1,
+        versionNumber: 1,
+        data: { targetStage: 'REQUIREMENTS_GENERATED', changeDescription: 'Tried again' },
+      },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    )
   })
 })

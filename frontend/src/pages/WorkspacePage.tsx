@@ -75,6 +75,11 @@ export function WorkspacePage() {
               Project {version.projectId} · Version {version.versionNumber}
             </span>
             <span className="text-muted-foreground line-clamp-1 text-xs">{version.ideaSnapshot}</span>
+            {version.versionNumber! > 1 && (
+              <span className="text-muted-foreground line-clamp-1 text-xs italic">
+                Regenerated{version.changeDescription ? `: ${version.changeDescription}` : ''}
+              </span>
+            )}
           </div>
         </header>
         <div className="animate-in fade-in mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 duration-300">

@@ -135,6 +135,23 @@ export interface UserStoryResponse {
   orderIndex?: number;
 }
 
+export type RegenerateVersionRequestTargetStage = typeof RegenerateVersionRequestTargetStage[keyof typeof RegenerateVersionRequestTargetStage];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const RegenerateVersionRequestTargetStage = {
+  AWAITING_ANSWERS: 'AWAITING_ANSWERS',
+  REQUIREMENTS_GENERATED: 'REQUIREMENTS_GENERATED',
+  EPICS_GENERATED: 'EPICS_GENERATED',
+  USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
+  TASKS_GENERATED: 'TASKS_GENERATED',
+} as const;
+
+export interface RegenerateVersionRequest {
+  targetStage: RegenerateVersionRequestTargetStage;
+  changeDescription?: string;
+}
+
 export interface AnswerRequest {
   questionId: number;
   /** @minLength 1 */
@@ -515,6 +532,75 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
 
       const mutationOptions = getGenerateTasksMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+export const getRegenerateVersionUrl = (projectId: number,
+    versionNumber: number,) => {
+
+
+  
+
+  return `/api/projects/${projectId}/versions/${versionNumber}/regenerate`
+}
+
+export const regenerateVersion = async (projectId: number,
+    versionNumber: number,
+    regenerateVersionRequest: RegenerateVersionRequest, options?: RequestInit): Promise<ProjectVersionResponse> => {
+  
+  return apiFetch<ProjectVersionResponse>(getRegenerateVersionUrl(projectId,versionNumber),
+  {      
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      regenerateVersionRequest,)
+  }
+);}
+
+
+
+
+export const getRegenerateVersionMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof regenerateVersion>>, TError,{projectId: number;versionNumber: number;data: RegenerateVersionRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof regenerateVersion>>, TError,{projectId: number;versionNumber: number;data: RegenerateVersionRequest}, TContext> => {
+
+const mutationKey = ['regenerateVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof regenerateVersion>>, {projectId: number;versionNumber: number;data: RegenerateVersionRequest}> = (props) => {
+          const {projectId,versionNumber,data} = props ?? {};
+
+          return  regenerateVersion(projectId,versionNumber,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegenerateVersionMutationResult = NonNullable<Awaited<ReturnType<typeof regenerateVersion>>>
+    export type RegenerateVersionMutationBody = RegenerateVersionRequest
+    export type RegenerateVersionMutationError = unknown
+
+    export const useRegenerateVersion = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof regenerateVersion>>, TError,{projectId: number;versionNumber: number;data: RegenerateVersionRequest}, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof regenerateVersion>>,
+        TError,
+        {projectId: number;versionNumber: number;data: RegenerateVersionRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getRegenerateVersionMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

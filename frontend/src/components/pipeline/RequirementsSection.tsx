@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ListChecks } from 'lucide-react'
-import { useUpdateRequirement } from '@/api/generated'
+import { useNavigate } from 'react-router-dom'
+import { RegenerateVersionRequestTargetStage, getGetProjectQueryKey, useRegenerateVersion, useUpdateRequirement } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Badge } from '@/components/ui/badge'
 import { patchVersionArrayItem } from '@/lib/cache'
 import { stageState } from '@/lib/pipeline'
 import { EditItemDialog } from './EditItemDialog'
+import { RegenerateDialog } from './RegenerateDialog'
 import { StageSection } from './StageSection'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -19,7 +21,9 @@ export function RequirementsSection({ version }: { version: ProjectVersionRespon
   const requirements = version.requirements ?? []
   const state = stageState('requirements', version.status)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const updateRequirement = useUpdateRequirement()
+  const regenerateVersion = useRegenerateVersion()
 
   function handleSave(requirementId: number, values: Record<string, string>, onSaved: () => void) {
     updateRequirement.mutate(
@@ -33,6 +37,23 @@ export function RequirementsSection({ version }: { version: ProjectVersionRespon
     )
   }
 
+  function handleRegenerate(changeDescription: string | undefined, onStarted: () => void) {
+    regenerateVersion.mutate(
+      {
+        projectId: version.projectId!,
+        versionNumber: version.versionNumber!,
+        data: { targetStage: RegenerateVersionRequestTargetStage.REQUIREMENTS_GENERATED, changeDescription },
+      },
+      {
+        onSuccess: (newVersion) => {
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(version.projectId!) })
+          onStarted()
+          navigate(`/projects/${newVersion.projectId}/versions/${newVersion.versionNumber}`)
+        },
+      },
+    )
+  }
+
   return (
     <StageSection
       id="requirements"
@@ -40,6 +61,16 @@ export function RequirementsSection({ version }: { version: ProjectVersionRespon
       icon={ListChecks}
       state={state}
       lockedMessage="Submit answers to the clarifying questions to generate requirements."
+      action={
+        state === 'done' && (
+          <RegenerateDialog
+            stageLabel="Requirements"
+            onRegenerate={handleRegenerate}
+            isPending={regenerateVersion.isPending}
+            isError={regenerateVersion.isError}
+          />
+        )
+      }
     >
       <ul className="flex flex-col gap-3">
         {requirements.map((requirement) => (

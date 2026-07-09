@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CheckSquare2, Layers } from 'lucide-react'
-import { useGenerateTasks, useUpdateTask } from '@/api/generated'
+import { useNavigate } from 'react-router-dom'
+import { RegenerateVersionRequestTargetStage, getGetProjectQueryKey, useGenerateTasks, useRegenerateVersion, useUpdateTask } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { patchVersionArrayItem } from '@/lib/cache'
 import { stageState } from '@/lib/pipeline'
 import { EditItemDialog } from './EditItemDialog'
+import { RegenerateDialog } from './RegenerateDialog'
 import { StageSection } from './StageSection'
 
 interface TasksSectionProps {
@@ -27,8 +29,10 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
   const tasks = version.tasks ?? []
   const state = stageState('tasks', version.status)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const generateTasks = useGenerateTasks()
   const updateTask = useUpdateTask()
+  const regenerateVersion = useRegenerateVersion()
 
   const epicIds = epics.map((epic) => String(epic.id))
 
@@ -36,6 +40,23 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
     generateTasks.mutate(
       { projectId: version.projectId!, versionNumber: version.versionNumber! },
       { onSuccess: onUpdated },
+    )
+  }
+
+  function handleRegenerate(changeDescription: string | undefined, onStarted: () => void) {
+    regenerateVersion.mutate(
+      {
+        projectId: version.projectId!,
+        versionNumber: version.versionNumber!,
+        data: { targetStage: RegenerateVersionRequestTargetStage.TASKS_GENERATED, changeDescription },
+      },
+      {
+        onSuccess: (newVersion) => {
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(version.projectId!) })
+          onStarted()
+          navigate(`/projects/${newVersion.projectId}/versions/${newVersion.versionNumber}`)
+        },
+      },
     )
   }
 
@@ -59,10 +80,19 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
       state={state}
       lockedMessage="Generate user stories to unlock task generation."
       action={
-        state === 'current' && (
+        state === 'current' ? (
           <Button onClick={handleGenerate} disabled={generateTasks.isPending} className="self-start">
             {generateTasks.isPending ? 'Generating Tasks...' : 'Generate Tasks'}
           </Button>
+        ) : (
+          state === 'done' && (
+            <RegenerateDialog
+              stageLabel="Tasks"
+              onRegenerate={handleRegenerate}
+              isPending={regenerateVersion.isPending}
+              isError={regenerateVersion.isError}
+            />
+          )
         )
       }
     >

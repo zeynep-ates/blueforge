@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Layers } from 'lucide-react'
-import { useGenerateEpics, useUpdateEpic } from '@/api/generated'
+import { useNavigate } from 'react-router-dom'
+import { RegenerateVersionRequestTargetStage, getGetProjectQueryKey, useGenerateEpics, useRegenerateVersion, useUpdateEpic } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Button } from '@/components/ui/button'
 import { patchVersionArrayItem } from '@/lib/cache'
 import { stageState } from '@/lib/pipeline'
 import { EditItemDialog } from './EditItemDialog'
+import { RegenerateDialog } from './RegenerateDialog'
 import { StageSection } from './StageSection'
 
 interface EpicsSectionProps {
@@ -17,13 +19,32 @@ export function EpicsSection({ version, onUpdated }: EpicsSectionProps) {
   const epics = version.epics ?? []
   const state = stageState('epics', version.status)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const generateEpics = useGenerateEpics()
   const updateEpic = useUpdateEpic()
+  const regenerateVersion = useRegenerateVersion()
 
   function handleGenerate() {
     generateEpics.mutate(
       { projectId: version.projectId!, versionNumber: version.versionNumber! },
       { onSuccess: onUpdated },
+    )
+  }
+
+  function handleRegenerate(changeDescription: string | undefined, onStarted: () => void) {
+    regenerateVersion.mutate(
+      {
+        projectId: version.projectId!,
+        versionNumber: version.versionNumber!,
+        data: { targetStage: RegenerateVersionRequestTargetStage.EPICS_GENERATED, changeDescription },
+      },
+      {
+        onSuccess: (newVersion) => {
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(version.projectId!) })
+          onStarted()
+          navigate(`/projects/${newVersion.projectId}/versions/${newVersion.versionNumber}`)
+        },
+      },
     )
   }
 
@@ -47,10 +68,19 @@ export function EpicsSection({ version, onUpdated }: EpicsSectionProps) {
       state={state}
       lockedMessage="Answer the clarifying questions to unlock epic generation."
       action={
-        state === 'current' && (
+        state === 'current' ? (
           <Button onClick={handleGenerate} disabled={generateEpics.isPending} className="self-start">
             {generateEpics.isPending ? 'Generating Epics...' : 'Generate Epics'}
           </Button>
+        ) : (
+          state === 'done' && (
+            <RegenerateDialog
+              stageLabel="Epics"
+              onRegenerate={handleRegenerate}
+              isPending={regenerateVersion.isPending}
+              isError={regenerateVersion.isError}
+            />
+          )
         )
       }
     >
