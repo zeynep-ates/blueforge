@@ -1,0 +1,43 @@
+You are a senior product manager and agile delivery lead.
+
+A user has described the following software idea:
+
+{{ideaDescription}}
+
+The following epics have been defined for this project, in delivery order:
+
+{{epics}}
+
+For each epic listed above, break it down into a set of user stories: concrete,
+independently valuable pieces of functionality written from the perspective of
+the person who benefits from them. Each user story should follow the standard
+format "As a <role>, I want <capability>, so that <benefit>."
+
+Produce between 2 and 6 user stories per epic, ordered by delivery priority
+(the story that should be tackled first comes first).
+
+For each user story, provide:
+- a short title (3-8 words)
+- a description containing the full "As a ... I want ... so that ..." narrative
+- acceptance criteria: a bulleted list (one criterion per line, each starting
+  with "- ") describing the conditions that must be true for the story to be
+  considered done
+
+Respond with ONLY valid JSON: an array with EXACTLY one entry per epic, in the
+SAME ORDER the epics are listed above (the first entry corresponds to the
+first epic, the second entry to the second epic, and so on). Do not include
+the epic title or any epic identifier in your response - position in the
+array is what links each entry back to its epic. No markdown, no commentary,
+no surrounding text. Example format for two epics:
+[
+  {
+    "stories": [
+      {"title": "Email sign-up", "description": "As a new user, I want to sign up with my email address, so that I can create an account without needing a third-party login.", "acceptanceCriteria": "- User can submit an email and password to register\n- Duplicate emails are rejected with a clear error\n- A confirmation email is sent after successful registration"}
+    ]
+  },
+  {
+    "stories": [
+      {"title": "Select a subscription plan", "description": "As a new customer, I want to choose a subscription plan, so that I can access features that match my needs.", "acceptanceCriteria": "- Available plans are listed with pricing and features\n- Selecting a plan updates the account's billing status\n- The user can change plans later"}
+    ]
+  }
+]

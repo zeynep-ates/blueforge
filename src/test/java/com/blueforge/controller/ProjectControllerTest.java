@@ -18,6 +18,7 @@ import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.dto.UserStoryResponse;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.RequirementType;
 import com.blueforge.service.InvalidAnswersException;
@@ -94,6 +95,7 @@ class ProjectControllerTest {
                         ProjectVersionStatus.AWAITING_ANSWERS,
                         List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0, null)),
                         List.of(),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(get("/api/projects/1/versions/1"))
@@ -125,6 +127,7 @@ class ProjectControllerTest {
                                 100L, "What is the primary user type?", 0, "End consumers")),
                         List.of(new RequirementResponse(
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/answers")
@@ -183,7 +186,8 @@ class ProjectControllerTest {
                         List.of(),
                         List.of(new RequirementResponse(
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
-                        List.of(new EpicResponse(300L, "User onboarding", "Covers account creation.", 0))));
+                        List.of(new EpicResponse(300L, "User onboarding", "Covers account creation.", 0)),
+                        List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/epics"))
                 .andExpect(status().isOk())
@@ -212,5 +216,55 @@ class ProjectControllerTest {
         when(projectService.generateEpics(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
 
         mockMvc.perform(post("/api/projects/1/versions/1/epics")).andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void generateUserStoriesReturnsOkWithBody() throws Exception {
+        when(projectService.generateUserStories(eq(1L), eq(1)))
+                .thenReturn(new ProjectVersionResponse(
+                        10L,
+                        1L,
+                        1,
+                        "An idea",
+                        null,
+                        ProjectVersionStatus.USER_STORIES_GENERATED,
+                        List.of(),
+                        List.of(),
+                        List.of(new EpicResponse(300L, "User onboarding", "Covers account creation.", 0)),
+                        List.of(new UserStoryResponse(
+                                400L,
+                                300L,
+                                "Email sign-up",
+                                "As a new user, I want to sign up with my email.",
+                                "- User can register with email and password",
+                                0))));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/user-stories"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("USER_STORIES_GENERATED")))
+                .andExpect(jsonPath("$.userStories[0].title", is("Email sign-up")));
+    }
+
+    @Test
+    void generateUserStoriesReturnsNotFoundWhenMissing() throws Exception {
+        when(projectService.generateUserStories(eq(1L), eq(1))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/user-stories")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void generateUserStoriesReturnsConflictWhenEpicsNotYetGenerated() throws Exception {
+        when(projectService.generateUserStories(eq(1L), eq(1)))
+                .thenThrow(new InvalidProjectVersionStatusException(
+                        1L, 1, ProjectVersionStatus.EPICS_GENERATED, ProjectVersionStatus.REQUIREMENTS_GENERATED));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/user-stories")).andExpect(status().isConflict());
+    }
+
+    @Test
+    void generateUserStoriesReturnsBadGatewayWhenAiClientFails() throws Exception {
+        when(projectService.generateUserStories(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/user-stories")).andExpect(status().isBadGateway());
     }
 }

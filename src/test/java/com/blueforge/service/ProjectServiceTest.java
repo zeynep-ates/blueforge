@@ -18,6 +18,7 @@ import com.blueforge.entity.ProjectVersion;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.Requirement;
 import com.blueforge.entity.RequirementType;
+import com.blueforge.entity.UserStory;
 import com.blueforge.repository.ProjectRepository;
 import com.blueforge.repository.ProjectVersionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -382,6 +383,149 @@ class ProjectServiceTest {
         when(aiClient.complete(any())).thenReturn("not valid json");
 
         assertThatThrownBy(() -> projectService.generateEpics(1L, 1))
+                .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void generateUserStoriesPersistsGeneratedUserStoriesAndTransitionsStatus() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.EPICS_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        Epic epic2 = new Epic(version, "Billing", "Covers payment processing.", 1);
+        epic2.setId(301L);
+        version.getEpics().addAll(List.of(epic1, epic2));
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> {
+            ProjectVersion v = inv.getArgument(0);
+            long storyId = 400L;
+            for (Epic e : v.getEpics()) {
+                for (UserStory s : e.getUserStories()) {
+                    s.setId(storyId++);
+                }
+            }
+            return v;
+        });
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"stories": [
+                            {"title": "Email sign-up", "description": "As a new user, I want to sign up with my email.", "acceptanceCriteria": "- User can register with email and password"}
+                          ]},
+                          {"stories": [
+                            {"title": "Select a plan", "description": "As a customer, I want to choose a plan.", "acceptanceCriteria": "- Plans are listed with pricing"},
+                            {"title": "Enter payment details", "description": "As a customer, I want to enter payment details.", "acceptanceCriteria": "- Card details can be submitted"}
+                          ]}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.generateUserStories(1L, 1);
+
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.USER_STORIES_GENERATED);
+        assertThat(response.userStories()).hasSize(3);
+        assertThat(response.userStories().get(0).epicId()).isEqualTo(300L);
+        assertThat(response.userStories().get(0).title()).isEqualTo("Email sign-up");
+        assertThat(response.userStories().get(0).orderIndex()).isEqualTo(0);
+        assertThat(response.userStories().get(1).epicId()).isEqualTo(301L);
+        assertThat(response.userStories().get(1).title()).isEqualTo("Select a plan");
+        assertThat(response.userStories().get(1).orderIndex()).isEqualTo(0);
+        assertThat(response.userStories().get(2).epicId()).isEqualTo(301L);
+        assertThat(response.userStories().get(2).title()).isEqualTo("Enter payment details");
+        assertThat(response.userStories().get(2).orderIndex()).isEqualTo(1);
+    }
+
+    @Test
+    void generateUserStoriesThrowsNotFoundWhenNoMatchingVersion() {
+        projectService = newService();
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.generateUserStories(1L, 1))
+                .isInstanceOf(ProjectVersionNotFoundException.class);
+    }
+
+    @Test
+    void generateUserStoriesThrowsWhenEpicsNotYetGenerated() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateUserStories(1L, 1))
+                .isInstanceOf(InvalidProjectVersionStatusException.class);
+    }
+
+    @Test
+    void generateUserStoriesThrowsWhenEpicsListIsEmpty() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.EPICS_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateUserStories(1L, 1))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void generateUserStoriesThrowsAiResponseParsingExceptionWhenAiReturnsInvalidJson() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.EPICS_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        version.getEpics().add(epic1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(aiClient.complete(any())).thenReturn("not valid json");
+
+        assertThatThrownBy(() -> projectService.generateUserStories(1L, 1))
+                .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void generateUserStoriesThrowsAiResponseParsingExceptionWhenEpicCountMismatch() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.EPICS_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        Epic epic2 = new Epic(version, "Billing", "Covers payment processing.", 1);
+        epic2.setId(301L);
+        version.getEpics().addAll(List.of(epic1, epic2));
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"stories": [
+                            {"title": "Email sign-up", "description": "As a new user, I want to sign up.", "acceptanceCriteria": "- User can register"}
+                          ]}
+                        ]
+                        """);
+
+        assertThatThrownBy(() -> projectService.generateUserStories(1L, 1))
                 .isInstanceOf(AiResponseParsingException.class);
     }
 }

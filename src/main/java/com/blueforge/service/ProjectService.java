@@ -9,6 +9,7 @@ import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.dto.UserStoryResponse;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
@@ -17,6 +18,7 @@ import com.blueforge.entity.ProjectVersion;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.Requirement;
 import com.blueforge.entity.RequirementType;
+import com.blueforge.entity.UserStory;
 import com.blueforge.repository.ProjectRepository;
 import com.blueforge.repository.ProjectVersionRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ public class ProjectService {
     private final String clarifyingQuestionsPromptTemplate;
     private final String requirementsPromptTemplate;
     private final String epicsPromptTemplate;
+    private final String userStoriesPromptTemplate;
 
     public ProjectService(
             ProjectRepository projectRepository,
@@ -58,6 +62,7 @@ public class ProjectService {
         this.clarifyingQuestionsPromptTemplate = loadPromptTemplate("prompts/clarifying-questions.txt");
         this.requirementsPromptTemplate = loadPromptTemplate("prompts/requirements.txt");
         this.epicsPromptTemplate = loadPromptTemplate("prompts/epics.txt");
+        this.userStoriesPromptTemplate = loadPromptTemplate("prompts/user-stories.txt");
     }
 
     @Transactional
@@ -138,6 +143,44 @@ public class ProjectService {
         return toProjectVersionResponse(projectId, version);
     }
 
+    @Transactional
+    public ProjectVersionResponse generateUserStories(Long projectId, int versionNumber) {
+        ProjectVersion version = projectVersionRepository
+                .findByProjectIdAndVersionNumber(projectId, versionNumber)
+                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+
+        if (version.getStatus() != ProjectVersionStatus.EPICS_GENERATED) {
+            throw new InvalidProjectVersionStatusException(
+                    projectId, versionNumber, ProjectVersionStatus.EPICS_GENERATED, version.getStatus());
+        }
+        if (version.getEpics().isEmpty()) {
+            throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
+                    + " reached " + ProjectVersionStatus.EPICS_GENERATED + " with no epics");
+        }
+
+        List<Epic> epics = version.getEpics();
+        List<GeneratedEpicStories> generatedEpicStories = requestUserStoriesFromAi(version);
+        if (generatedEpicStories.size() != epics.size()) {
+            throw new AiResponseParsingException("AI returned user stories for " + generatedEpicStories.size()
+                    + " epics, expected exactly " + epics.size());
+        }
+        for (int i = 0; i < epics.size(); i++) {
+            Epic epic = epics.get(i);
+            List<GeneratedUserStory> stories = generatedEpicStories.get(i).stories();
+            for (int j = 0; j < stories.size(); j++) {
+                GeneratedUserStory generated = stories.get(j);
+                epic.getUserStories()
+                        .add(new UserStory(
+                                epic, generated.title(), generated.description(), generated.acceptanceCriteria(), j));
+            }
+        }
+        version.setStatus(ProjectVersionStatus.USER_STORIES_GENERATED);
+
+        version = projectVersionRepository.save(version);
+
+        return toProjectVersionResponse(projectId, version);
+    }
+
     private void applyAnswers(ProjectVersion version, List<AnswerRequest> answers) {
         Map<Long, ClarifyingQuestion> questionsById = version.getClarifyingQuestions().stream()
                 .collect(Collectors.toMap(ClarifyingQuestion::getId, Function.identity()));
@@ -172,7 +215,8 @@ public class ProjectService {
                 version.getStatus(),
                 toQuestionResponses(version),
                 toRequirementResponses(version),
-                toEpicResponses(version));
+                toEpicResponses(version),
+                toUserStoryResponses(version));
     }
 
     private static List<ClarifyingQuestionResponse> toQuestionResponses(ProjectVersion version) {
@@ -195,6 +239,19 @@ public class ProjectService {
     private static List<EpicResponse> toEpicResponses(ProjectVersion version) {
         return version.getEpics().stream()
                 .map(e -> new EpicResponse(e.getId(), e.getTitle(), e.getDescription(), e.getOrderIndex()))
+                .toList();
+    }
+
+    private static List<UserStoryResponse> toUserStoryResponses(ProjectVersion version) {
+        return version.getEpics().stream()
+                .flatMap(e -> e.getUserStories().stream())
+                .map(s -> new UserStoryResponse(
+                        s.getId(),
+                        s.getEpic().getId(),
+                        s.getTitle(),
+                        s.getDescription(),
+                        s.getAcceptanceCriteria(),
+                        s.getOrderIndex()))
                 .toList();
     }
 
@@ -247,6 +304,26 @@ public class ProjectService {
                 .collect(Collectors.joining("\n"));
     }
 
+    private List<GeneratedEpicStories> requestUserStoriesFromAi(ProjectVersion version) {
+        String prompt = userStoriesPromptTemplate
+                .replace("{{ideaDescription}}", version.getIdeaSnapshot())
+                .replace("{{epics}}", formatEpics(version));
+        String rawResponse = aiClient.complete(prompt);
+        try {
+            return objectMapper.readValue(rawResponse, new TypeReference<List<GeneratedEpicStories>>() {});
+        } catch (JsonProcessingException e) {
+            throw new AiResponseParsingException(
+                    "AI returned a response that could not be parsed as a JSON array of epic user stories", e);
+        }
+    }
+
+    private static String formatEpics(ProjectVersion version) {
+        List<Epic> epics = version.getEpics();
+        return IntStream.range(0, epics.size())
+                .mapToObj(i -> (i + 1) + ". " + epics.get(i).getTitle() + ": " + epics.get(i).getDescription())
+                .collect(Collectors.joining("\n"));
+    }
+
     private static String loadPromptTemplate(String classpathLocation) {
         try {
             return new ClassPathResource(classpathLocation).getContentAsString(StandardCharsets.UTF_8);
@@ -258,4 +335,8 @@ public class ProjectService {
     private record GeneratedRequirement(RequirementType type, String title, String description) {}
 
     private record GeneratedEpic(String title, String description) {}
+
+    private record GeneratedUserStory(String title, String description, String acceptanceCriteria) {}
+
+    private record GeneratedEpicStories(List<GeneratedUserStory> stories) {}
 }

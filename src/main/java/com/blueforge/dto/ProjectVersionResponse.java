@@ -12,4 +12,5 @@ public record ProjectVersionResponse(
         ProjectVersionStatus status,
         List<ClarifyingQuestionResponse> questions,
         List<RequirementResponse> requirements,
-        List<EpicResponse> epics) {}
+        List<EpicResponse> epics,
+        List<UserStoryResponse> userStories) {}

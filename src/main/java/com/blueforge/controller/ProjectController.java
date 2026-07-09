@@ -48,4 +48,10 @@ public class ProjectController {
             @PathVariable Long projectId, @PathVariable int versionNumber) {
         return ResponseEntity.ok(projectService.generateEpics(projectId, versionNumber));
     }
+
+    @PostMapping("/{projectId}/versions/{versionNumber}/user-stories")
+    public ResponseEntity<ProjectVersionResponse> generateUserStories(
+            @PathVariable Long projectId, @PathVariable int versionNumber) {
+        return ResponseEntity.ok(projectService.generateUserStories(projectId, versionNumber));
+    }
 }
