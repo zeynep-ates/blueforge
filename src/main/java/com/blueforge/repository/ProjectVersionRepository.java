@@ -11,7 +11,8 @@ public interface ProjectVersionRepository extends JpaRepository<ProjectVersion, 
     @Query(
             """
             SELECT v FROM ProjectVersion v
-            LEFT JOIN FETCH v.clarifyingQuestions
+            LEFT JOIN FETCH v.clarifyingQuestions cq
+            LEFT JOIN FETCH cq.answer
             WHERE v.project.id = :projectId AND v.versionNumber = :versionNumber
             """)
     Optional<ProjectVersion> findByProjectIdAndVersionNumber(
