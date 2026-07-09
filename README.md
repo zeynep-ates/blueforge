@@ -33,6 +33,12 @@ The project focuses on clean architecture, AI integration, and production-orient
 - Edit the title, description, and acceptance criteria of generated User Stories
 - Changes save immediately via dedicated PATCH endpoints, no regeneration required
 
+### Regeneration
+
+- Regenerate Requirements, Epics, User Stories, or Tasks for any stage a version has already reached
+- Regeneration never overwrites existing data — it creates a new project version instead, leaving the original version and any manual edits in it untouched
+- Optional note describing why a stage was regenerated
+
 ### Backend
 
 - Layered Spring Boot architecture
@@ -281,6 +287,12 @@ PATCH /api/user-stories/{userStoryId}
 
 ```
 PATCH /api/tasks/{taskId}
+```
+
+### Regenerate Version
+
+```
+POST /api/projects/{projectId}/versions/{versionNumber}/regenerate
 ```
 
 Interactive API documentation:
