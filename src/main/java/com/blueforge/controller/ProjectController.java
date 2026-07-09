@@ -6,6 +6,7 @@ import com.blueforge.dto.ProjectDetailResponse;
 import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
+import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.service.ProjectService;
 import jakarta.validation.Valid;
@@ -78,5 +79,13 @@ public class ProjectController {
     public ResponseEntity<ProjectVersionResponse> generateTasks(
             @PathVariable Long projectId, @PathVariable int versionNumber) {
         return ResponseEntity.ok(projectService.generateTasks(projectId, versionNumber));
+    }
+
+    @PostMapping("/{projectId}/versions/{versionNumber}/regenerate")
+    public ResponseEntity<ProjectVersionResponse> regenerateVersion(
+            @PathVariable Long projectId,
+            @PathVariable int versionNumber,
+            @Valid @RequestBody RegenerateVersionRequest request) {
+        return ResponseEntity.ok(projectService.regenerateVersion(projectId, versionNumber, request));
     }
 }

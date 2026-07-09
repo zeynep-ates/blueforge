@@ -19,6 +19,7 @@ import com.blueforge.dto.ProjectDetailResponse;
 import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
+import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.TaskResponse;
@@ -29,9 +30,11 @@ import com.blueforge.entity.TaskEffort;
 import com.blueforge.entity.TaskPriority;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
+import com.blueforge.service.InvalidRegenerationTargetException;
 import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectService;
 import com.blueforge.service.ProjectVersionNotFoundException;
+import com.blueforge.service.RegenerationNotAllowedException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
@@ -330,6 +333,79 @@ class ProjectControllerTest {
         when(projectService.generateTasks(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
 
         mockMvc.perform(post("/api/projects/1/versions/1/tasks")).andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void regenerateVersionReturnsOkWithBody() throws Exception {
+        when(projectService.regenerateVersion(eq(1L), eq(1), any()))
+                .thenReturn(new ProjectVersionResponse(
+                        11L,
+                        1L,
+                        2,
+                        "An idea",
+                        "Tried again",
+                        ProjectVersionStatus.EPICS_GENERATED,
+                        List.of(),
+                        List.of(new RequirementResponse(
+                                200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
+                        List.of(new EpicResponse(301L, "Different onboarding", "A fresh take.", 0)),
+                        List.of(),
+                        List.of()));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, "Tried again"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionNumber", is(2)))
+                .andExpect(jsonPath("$.changeDescription", is("Tried again")))
+                .andExpect(jsonPath("$.status", is("EPICS_GENERATED")))
+                .andExpect(jsonPath("$.epics[0].title", is("Different onboarding")));
+    }
+
+    @Test
+    void regenerateVersionReturnsNotFoundWhenMissing() throws Exception {
+        when(projectService.regenerateVersion(eq(1L), eq(1), any()))
+                .thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, null))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void regenerateVersionReturnsConflictWhenStageNotYetReached() throws Exception {
+        when(projectService.regenerateVersion(eq(1L), eq(1), any()))
+                .thenThrow(new RegenerationNotAllowedException(
+                        1L, 1, ProjectVersionStatus.EPICS_GENERATED, ProjectVersionStatus.AWAITING_ANSWERS));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, null))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void regenerateVersionReturnsBadRequestWhenTargetStageNotRegenerable() throws Exception {
+        when(projectService.regenerateVersion(eq(1L), eq(1), any()))
+                .thenThrow(new InvalidRegenerationTargetException(ProjectVersionStatus.AWAITING_ANSWERS));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new RegenerateVersionRequest(ProjectVersionStatus.AWAITING_ANSWERS, null))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void regenerateVersionReturnsBadRequestWhenTargetStageMissing() throws Exception {
+        mockMvc.perform(post("/api/projects/1/versions/1/regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

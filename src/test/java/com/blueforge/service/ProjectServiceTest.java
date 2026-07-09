@@ -16,7 +16,9 @@ import com.blueforge.dto.ProjectDetailResponse;
 import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
+import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
 import com.blueforge.entity.Project;
@@ -836,5 +838,170 @@ class ProjectServiceTest {
         when(projectRepository.existsById(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> projectService.listVersions(1L)).isInstanceOf(ProjectNotFoundException.class);
+    }
+
+    @Test
+    void regenerateVersionForEpicsClonesRequirementsAndLeavesBaseVersionUntouched() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        base.setId(10L);
+        ClarifyingQuestion q1 = new ClarifyingQuestion(base, "What is the primary user type?", 0);
+        q1.setId(100L);
+        q1.setAnswer(new ClarifyingAnswer(q1, "End consumers"));
+        base.getClarifyingQuestions().add(q1);
+        Requirement r1 = new Requirement(
+                base, RequirementType.FUNCTIONAL, "User registration", "Users can sign up with email.", 0);
+        r1.setId(200L);
+        base.getRequirements().add(r1);
+        Epic baseEpic = new Epic(base, "User onboarding", "Covers account creation.", 0);
+        baseEpic.setId(300L);
+        UserStory baseStory = new UserStory(
+                baseEpic, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        baseStory.setId(400L);
+        Task baseTask = new Task(
+                baseStory, "Add POST /register endpoint", "Implement registration.", TaskPriority.HIGH, TaskEffort.M, 0);
+        baseTask.setId(500L);
+        baseStory.getTasks().add(baseTask);
+        baseEpic.getUserStories().add(baseStory);
+        base.getEpics().add(baseEpic);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(base));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"title": "Different onboarding", "description": "A fresh take on onboarding."}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.regenerateVersion(
+                1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, "Tried again"));
+
+        assertThat(response.versionNumber()).isEqualTo(2);
+        assertThat(response.changeDescription()).isEqualTo("Tried again");
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.EPICS_GENERATED);
+        assertThat(response.questions()).hasSize(1);
+        assertThat(response.questions().get(0).answerText()).isEqualTo("End consumers");
+        assertThat(response.requirements()).hasSize(1);
+        assertThat(response.requirements().get(0).title()).isEqualTo("User registration");
+        assertThat(response.epics()).hasSize(1);
+        assertThat(response.epics().get(0).title()).isEqualTo("Different onboarding");
+        assertThat(response.userStories()).isEmpty();
+        assertThat(response.tasks()).isEmpty();
+
+        assertThat(base.getStatus()).isEqualTo(ProjectVersionStatus.TASKS_GENERATED);
+        assertThat(base.getEpics()).hasSize(1);
+        assertThat(base.getEpics().get(0).getTitle()).isEqualTo("User onboarding");
+        assertThat(base.getEpics().get(0).getUserStories()).hasSize(1);
+        assertThat(base.getEpics().get(0).getUserStories().get(0).getTasks()).hasSize(1);
+    }
+
+    @Test
+    void regenerateVersionForRequirementsClonesOnlyQuestionsAndAnswers() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        base.setId(10L);
+        ClarifyingQuestion q1 = new ClarifyingQuestion(base, "What is the primary user type?", 0);
+        q1.setId(100L);
+        q1.setAnswer(new ClarifyingAnswer(q1, "End consumers"));
+        base.getClarifyingQuestions().add(q1);
+        Requirement r1 = new Requirement(
+                base, RequirementType.FUNCTIONAL, "User registration", "Users can sign up with email.", 0);
+        r1.setId(200L);
+        base.getRequirements().add(r1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(base));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"type": "FUNCTIONAL", "title": "Different requirement", "description": "A fresh take."}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.regenerateVersion(
+                1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.REQUIREMENTS_GENERATED, null));
+
+        assertThat(response.versionNumber()).isEqualTo(2);
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        assertThat(response.questions()).hasSize(1);
+        assertThat(response.questions().get(0).answerText()).isEqualTo("End consumers");
+        assertThat(response.requirements()).hasSize(1);
+        assertThat(response.requirements().get(0).title()).isEqualTo("Different requirement");
+    }
+
+    @Test
+    void regenerateVersionThrowsWhenTargetStageNotYetReached() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        base.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+
+        assertThatThrownBy(() -> projectService.regenerateVersion(
+                        1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, null)))
+                .isInstanceOf(RegenerationNotAllowedException.class);
+    }
+
+    @Test
+    void regenerateVersionThrowsWhenTargetStageIsAwaitingAnswers() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        base.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+
+        assertThatThrownBy(() -> projectService.regenerateVersion(
+                        1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.AWAITING_ANSWERS, null)))
+                .isInstanceOf(InvalidRegenerationTargetException.class);
+    }
+
+    @Test
+    void regenerateVersionThrowsNotFoundWhenNoMatchingVersion() {
+        projectService = newService();
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.regenerateVersion(
+                        1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, null)))
+                .isInstanceOf(ProjectVersionNotFoundException.class);
+    }
+
+    @Test
+    void regenerateVersionThrowsAiResponseParsingExceptionWhenAiReturnsInvalidJson() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.EPICS_GENERATED);
+        base.setId(10L);
+        Requirement r1 = new Requirement(
+                base, RequirementType.FUNCTIONAL, "User registration", "Users can sign up with email.", 0);
+        r1.setId(200L);
+        base.getRequirements().add(r1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(base));
+        when(aiClient.complete(any())).thenReturn("not valid json");
+
+        assertThatThrownBy(() -> projectService.regenerateVersion(
+                        1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, null)))
+                .isInstanceOf(AiResponseParsingException.class);
     }
 }

@@ -4,9 +4,11 @@ import com.blueforge.ai.AiClientException;
 import com.blueforge.service.AiResponseParsingException;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
+import com.blueforge.service.InvalidRegenerationTargetException;
 import com.blueforge.service.EpicNotFoundException;
 import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectVersionNotFoundException;
+import com.blueforge.service.RegenerationNotAllowedException;
 import com.blueforge.service.RequirementNotFoundException;
 import com.blueforge.service.TaskNotFoundException;
 import com.blueforge.service.UserStoryNotFoundException;
@@ -43,8 +45,18 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
     }
 
+    @ExceptionHandler(InvalidRegenerationTargetException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRegenerationTarget(InvalidRegenerationTargetException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
+    }
+
     @ExceptionHandler(InvalidProjectVersionStatusException.class)
     public ResponseEntity<ErrorResponse> handleInvalidStatus(InvalidProjectVersionStatusException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(RegenerationNotAllowedException.class)
+    public ResponseEntity<ErrorResponse> handleRegenerationNotAllowed(RegenerationNotAllowedException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(e.getMessage()));
     }
 

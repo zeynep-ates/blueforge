@@ -10,6 +10,7 @@ import com.blueforge.dto.ProjectDetailResponse;
 import com.blueforge.dto.ProjectSummaryResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
+import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.TaskResponse;
@@ -131,9 +132,7 @@ public class ProjectService {
 
     @Transactional
     public ProjectVersionResponse submitAnswers(Long projectId, int versionNumber, SubmitAnswersRequest request) {
-        ProjectVersion version = projectVersionRepository
-                .findByProjectIdAndVersionNumber(projectId, versionNumber)
-                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+        ProjectVersion version = findVersionOrThrow(projectId, versionNumber);
 
         if (version.getStatus() != ProjectVersionStatus.AWAITING_ANSWERS) {
             throw new InvalidProjectVersionStatusException(
@@ -141,14 +140,7 @@ public class ProjectService {
         }
 
         applyAnswers(version, request.answers());
-
-        List<GeneratedRequirement> generatedRequirements = generateRequirements(version);
-        for (int i = 0; i < generatedRequirements.size(); i++) {
-            GeneratedRequirement generated = generatedRequirements.get(i);
-            version.getRequirements()
-                    .add(new Requirement(version, generated.type(), generated.title(), generated.description(), i));
-        }
-        version.setStatus(ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        applyRequirementsGeneration(version);
 
         version = projectVersionRepository.save(version);
 
@@ -157,25 +149,14 @@ public class ProjectService {
 
     @Transactional
     public ProjectVersionResponse generateEpics(Long projectId, int versionNumber) {
-        ProjectVersion version = projectVersionRepository
-                .findByProjectIdAndVersionNumber(projectId, versionNumber)
-                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+        ProjectVersion version = findVersionOrThrow(projectId, versionNumber);
 
         if (version.getStatus() != ProjectVersionStatus.REQUIREMENTS_GENERATED) {
             throw new InvalidProjectVersionStatusException(
                     projectId, versionNumber, ProjectVersionStatus.REQUIREMENTS_GENERATED, version.getStatus());
         }
-        if (version.getRequirements().isEmpty()) {
-            throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
-                    + " reached " + ProjectVersionStatus.REQUIREMENTS_GENERATED + " with no requirements");
-        }
 
-        List<GeneratedEpic> generatedEpics = requestEpicsFromAi(version);
-        for (int i = 0; i < generatedEpics.size(); i++) {
-            GeneratedEpic generated = generatedEpics.get(i);
-            version.getEpics().add(new Epic(version, generated.title(), generated.description(), i));
-        }
-        version.setStatus(ProjectVersionStatus.EPICS_GENERATED);
+        applyEpicsGeneration(version);
 
         version = projectVersionRepository.save(version);
 
@@ -184,20 +165,75 @@ public class ProjectService {
 
     @Transactional
     public ProjectVersionResponse generateUserStories(Long projectId, int versionNumber) {
-        ProjectVersion version = projectVersionRepository
-                .findByProjectIdAndVersionNumber(projectId, versionNumber)
-                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+        ProjectVersion version = findVersionOrThrow(projectId, versionNumber);
 
         if (version.getStatus() != ProjectVersionStatus.EPICS_GENERATED) {
             throw new InvalidProjectVersionStatusException(
                     projectId, versionNumber, ProjectVersionStatus.EPICS_GENERATED, version.getStatus());
         }
-        if (version.getEpics().isEmpty()) {
-            throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
-                    + " reached " + ProjectVersionStatus.EPICS_GENERATED + " with no epics");
+
+        applyUserStoriesGeneration(version);
+
+        version = projectVersionRepository.save(version);
+
+        return toProjectVersionResponse(projectId, version);
+    }
+
+    @Transactional
+    public ProjectVersionResponse generateTasks(Long projectId, int versionNumber) {
+        ProjectVersion version = findVersionOrThrow(projectId, versionNumber);
+
+        if (version.getStatus() != ProjectVersionStatus.USER_STORIES_GENERATED) {
+            throw new InvalidProjectVersionStatusException(
+                    projectId, versionNumber, ProjectVersionStatus.USER_STORIES_GENERATED, version.getStatus());
         }
 
+        applyTasksGeneration(version);
+
+        version = projectVersionRepository.save(version);
+
+        return toProjectVersionResponse(projectId, version);
+    }
+
+    private ProjectVersion findVersionOrThrow(Long projectId, int versionNumber) {
+        return projectVersionRepository
+                .findByProjectIdAndVersionNumber(projectId, versionNumber)
+                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+    }
+
+    private void applyRequirementsGeneration(ProjectVersion version) {
+        List<GeneratedRequirement> generatedRequirements = generateRequirements(version);
+        for (int i = 0; i < generatedRequirements.size(); i++) {
+            GeneratedRequirement generated = generatedRequirements.get(i);
+            version.getRequirements()
+                    .add(new Requirement(version, generated.type(), generated.title(), generated.description(), i));
+        }
+        version.setStatus(ProjectVersionStatus.REQUIREMENTS_GENERATED);
+    }
+
+    private void applyEpicsGeneration(ProjectVersion version) {
+        if (version.getRequirements().isEmpty()) {
+            throw new IllegalStateException("Version " + version.getVersionNumber() + " of project "
+                    + version.getProject().getId() + " reached " + ProjectVersionStatus.REQUIREMENTS_GENERATED
+                    + " with no requirements");
+        }
+
+        List<GeneratedEpic> generatedEpics = requestEpicsFromAi(version);
+        for (int i = 0; i < generatedEpics.size(); i++) {
+            GeneratedEpic generated = generatedEpics.get(i);
+            version.getEpics().add(new Epic(version, generated.title(), generated.description(), i));
+        }
+        version.setStatus(ProjectVersionStatus.EPICS_GENERATED);
+    }
+
+    private void applyUserStoriesGeneration(ProjectVersion version) {
         List<Epic> epics = version.getEpics();
+        if (epics.isEmpty()) {
+            throw new IllegalStateException("Version " + version.getVersionNumber() + " of project "
+                    + version.getProject().getId() + " reached " + ProjectVersionStatus.EPICS_GENERATED
+                    + " with no epics");
+        }
+
         List<GeneratedEpicStories> generatedEpicStories = requestUserStoriesFromAi(version);
         if (generatedEpicStories.size() != epics.size()) {
             throw new AiResponseParsingException("AI returned user stories for " + generatedEpicStories.size()
@@ -214,33 +250,20 @@ public class ProjectService {
             }
         }
         version.setStatus(ProjectVersionStatus.USER_STORIES_GENERATED);
-
-        version = projectVersionRepository.save(version);
-
-        return toProjectVersionResponse(projectId, version);
     }
 
-    @Transactional
-    public ProjectVersionResponse generateTasks(Long projectId, int versionNumber) {
-        ProjectVersion version = projectVersionRepository
-                .findByProjectIdAndVersionNumber(projectId, versionNumber)
-                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
-
-        if (version.getStatus() != ProjectVersionStatus.USER_STORIES_GENERATED) {
-            throw new InvalidProjectVersionStatusException(
-                    projectId, versionNumber, ProjectVersionStatus.USER_STORIES_GENERATED, version.getStatus());
-        }
-
+    private void applyTasksGeneration(ProjectVersion version) {
         List<Epic> epics = version.getEpics();
         if (epics.isEmpty()) {
-            throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
-                    + " reached " + ProjectVersionStatus.USER_STORIES_GENERATED + " with no epics");
+            throw new IllegalStateException("Version " + version.getVersionNumber() + " of project "
+                    + version.getProject().getId() + " reached " + ProjectVersionStatus.USER_STORIES_GENERATED
+                    + " with no epics");
         }
         for (Epic epic : epics) {
             if (epic.getUserStories().isEmpty()) {
-                throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
-                        + " reached " + ProjectVersionStatus.USER_STORIES_GENERATED + " with epic " + epic.getId()
-                        + " having no user stories");
+                throw new IllegalStateException("Version " + version.getVersionNumber() + " of project "
+                        + version.getProject().getId() + " reached " + ProjectVersionStatus.USER_STORIES_GENERATED
+                        + " with epic " + epic.getId() + " having no user stories");
             }
         }
 
@@ -268,10 +291,105 @@ public class ProjectService {
             }
         }
         version.setStatus(ProjectVersionStatus.TASKS_GENERATED);
+    }
 
-        version = projectVersionRepository.save(version);
+    private static final List<ProjectVersionStatus> REGENERABLE_STAGES = List.of(
+            ProjectVersionStatus.REQUIREMENTS_GENERATED,
+            ProjectVersionStatus.EPICS_GENERATED,
+            ProjectVersionStatus.USER_STORIES_GENERATED,
+            ProjectVersionStatus.TASKS_GENERATED);
 
-        return toProjectVersionResponse(projectId, version);
+    @Transactional
+    public ProjectVersionResponse regenerateVersion(
+            Long projectId, int baseVersionNumber, RegenerateVersionRequest request) {
+        ProjectVersion base = findVersionOrThrow(projectId, baseVersionNumber);
+        ProjectVersionStatus targetStage = request.targetStage();
+
+        if (!REGENERABLE_STAGES.contains(targetStage)) {
+            throw new InvalidRegenerationTargetException(targetStage);
+        }
+        if (base.getStatus().ordinal() < targetStage.ordinal()) {
+            throw new RegenerationNotAllowedException(projectId, baseVersionNumber, targetStage, base.getStatus());
+        }
+
+        ProjectVersionStatus cloneStartStatus = ProjectVersionStatus.values()[targetStage.ordinal() - 1];
+        ProjectVersion clone = new ProjectVersion(
+                base.getProject(), nextVersionNumber(projectId), base.getIdeaSnapshot(), cloneStartStatus);
+        clone.setChangeDescription(request.changeDescription());
+
+        cloneQuestionsAndAnswers(base, clone);
+        if (targetStage.ordinal() >= ProjectVersionStatus.EPICS_GENERATED.ordinal()) {
+            cloneRequirements(base, clone);
+        }
+        if (targetStage.ordinal() >= ProjectVersionStatus.USER_STORIES_GENERATED.ordinal()) {
+            cloneEpicsShell(base, clone);
+        }
+        if (targetStage.ordinal() >= ProjectVersionStatus.TASKS_GENERATED.ordinal()) {
+            cloneUserStoriesInto(base, clone);
+        }
+
+        switch (targetStage) {
+            case REQUIREMENTS_GENERATED -> applyRequirementsGeneration(clone);
+            case EPICS_GENERATED -> applyEpicsGeneration(clone);
+            case USER_STORIES_GENERATED -> applyUserStoriesGeneration(clone);
+            case TASKS_GENERATED -> applyTasksGeneration(clone);
+            default -> throw new InvalidRegenerationTargetException(targetStage);
+        }
+
+        clone = projectVersionRepository.save(clone);
+
+        return toProjectVersionResponse(projectId, clone);
+    }
+
+    private int nextVersionNumber(Long projectId) {
+        List<ProjectVersion> versions = projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(projectId);
+        return versions.get(versions.size() - 1).getVersionNumber() + 1;
+    }
+
+    private static void cloneQuestionsAndAnswers(ProjectVersion base, ProjectVersion target) {
+        for (ClarifyingQuestion question : base.getClarifyingQuestions()) {
+            ClarifyingQuestion clonedQuestion =
+                    new ClarifyingQuestion(target, question.getQuestionText(), question.getOrderIndex());
+            if (question.getAnswer() != null) {
+                clonedQuestion.setAnswer(new ClarifyingAnswer(clonedQuestion, question.getAnswer().getAnswerText()));
+            }
+            target.getClarifyingQuestions().add(clonedQuestion);
+        }
+    }
+
+    private static void cloneRequirements(ProjectVersion base, ProjectVersion target) {
+        for (Requirement requirement : base.getRequirements()) {
+            target.getRequirements()
+                    .add(new Requirement(
+                            target,
+                            requirement.getType(),
+                            requirement.getTitle(),
+                            requirement.getDescription(),
+                            requirement.getOrderIndex()));
+        }
+    }
+
+    private static void cloneEpicsShell(ProjectVersion base, ProjectVersion target) {
+        for (Epic epic : base.getEpics()) {
+            target.getEpics().add(new Epic(target, epic.getTitle(), epic.getDescription(), epic.getOrderIndex()));
+        }
+    }
+
+    private static void cloneUserStoriesInto(ProjectVersion base, ProjectVersion target) {
+        List<Epic> baseEpics = base.getEpics();
+        List<Epic> targetEpics = target.getEpics();
+        for (int i = 0; i < baseEpics.size(); i++) {
+            Epic targetEpic = targetEpics.get(i);
+            for (UserStory story : baseEpics.get(i).getUserStories()) {
+                targetEpic.getUserStories()
+                        .add(new UserStory(
+                                targetEpic,
+                                story.getTitle(),
+                                story.getDescription(),
+                                story.getAcceptanceCriteria(),
+                                story.getOrderIndex()));
+            }
+        }
     }
 
     private void applyAnswers(ProjectVersion version, List<AnswerRequest> answers) {
