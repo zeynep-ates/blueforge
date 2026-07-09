@@ -86,7 +86,6 @@ The project focuses on clean architecture, AI integration, and production-orient
 
 ![Home Dark](docs/screenshots/7-home-dark.png)
 
-<!-- TODO: capture and uncomment once available.
 ### Editing a Requirement
 
 ![Editing a Requirement](docs/screenshots/8-edit-requirement.png)
@@ -94,7 +93,6 @@ The project focuses on clean architecture, AI integration, and production-orient
 ### Editing a User Story
 
 ![Editing a User Story](docs/screenshots/9-edit-user-story.png)
--->
 
 ---
 
