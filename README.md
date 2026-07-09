@@ -278,10 +278,13 @@ A React frontend covers the full pipeline end to end — submit an idea,
 answer the clarifying questions, then generate and browse Requirements,
 Epics, User Stories, and Tasks as an expandable hierarchy.
 
-> **Screenshots**: pending. To capture them: run both the backend and the
-> frontend (see below), walk through the pipeline for one project, and save
-> screenshots of the New Idea page and the Workspace page (light and dark)
-> into `docs/screenshots/`, then reference them here.
+<!-- TODO: capture these screenshots (see docs/screenshots/README.md for
+     exactly what to capture) and uncomment.
+![Home page (light mode)](docs/screenshots/home-light.png)
+![Workspace (light mode)](docs/screenshots/workspace-light.png)
+![Workspace (dark mode)](docs/screenshots/workspace-dark.png)
+![Mobile view](docs/screenshots/mobile.png)
+-->
 
 Key characteristics:
 
