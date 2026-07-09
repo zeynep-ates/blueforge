@@ -14,6 +14,7 @@ import com.blueforge.dto.AnswerRequest;
 import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
+import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
@@ -92,6 +93,7 @@ class ProjectControllerTest {
                         null,
                         ProjectVersionStatus.AWAITING_ANSWERS,
                         List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0, null)),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(get("/api/projects/1/versions/1"))
@@ -122,7 +124,8 @@ class ProjectControllerTest {
                         List.of(new ClarifyingQuestionResponse(
                                 100L, "What is the primary user type?", 0, "End consumers")),
                         List.of(new RequirementResponse(
-                                200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0))));
+                                200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
+                        List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/answers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -165,5 +168,49 @@ class ProjectControllerTest {
                         .content(objectMapper.writeValueAsString(
                                 new SubmitAnswersRequest(List.of(new AnswerRequest(100L, "answer"))))))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void generateEpicsReturnsOkWithBody() throws Exception {
+        when(projectService.generateEpics(eq(1L), eq(1)))
+                .thenReturn(new ProjectVersionResponse(
+                        10L,
+                        1L,
+                        1,
+                        "An idea",
+                        null,
+                        ProjectVersionStatus.EPICS_GENERATED,
+                        List.of(),
+                        List.of(new RequirementResponse(
+                                200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
+                        List.of(new EpicResponse(300L, "User onboarding", "Covers account creation.", 0))));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/epics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("EPICS_GENERATED")))
+                .andExpect(jsonPath("$.epics[0].title", is("User onboarding")));
+    }
+
+    @Test
+    void generateEpicsReturnsNotFoundWhenMissing() throws Exception {
+        when(projectService.generateEpics(eq(1L), eq(1))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/epics")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void generateEpicsReturnsConflictWhenRequirementsNotYetGenerated() throws Exception {
+        when(projectService.generateEpics(eq(1L), eq(1)))
+                .thenThrow(new InvalidProjectVersionStatusException(
+                        1L, 1, ProjectVersionStatus.REQUIREMENTS_GENERATED, ProjectVersionStatus.AWAITING_ANSWERS));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/epics")).andExpect(status().isConflict());
+    }
+
+    @Test
+    void generateEpicsReturnsBadGatewayWhenAiClientFails() throws Exception {
+        when(projectService.generateEpics(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/epics")).andExpect(status().isBadGateway());
     }
 }

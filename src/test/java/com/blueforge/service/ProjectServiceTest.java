@@ -12,6 +12,7 @@ import com.blueforge.dto.CreateProjectResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.entity.ClarifyingQuestion;
+import com.blueforge.entity.Epic;
 import com.blueforge.entity.Project;
 import com.blueforge.entity.ProjectVersion;
 import com.blueforge.entity.ProjectVersionStatus;
@@ -278,6 +279,109 @@ class ProjectServiceTest {
         SubmitAnswersRequest request = new SubmitAnswersRequest(List.of(new AnswerRequest(100L, "answer")));
 
         assertThatThrownBy(() -> projectService.submitAnswers(1L, 1, request))
+                .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void generateEpicsPersistsGeneratedEpicsAndTransitionsStatus() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        version.setId(10L);
+        Requirement r1 = new Requirement(
+                version, RequirementType.FUNCTIONAL, "User registration", "Users can sign up with email.", 0);
+        r1.setId(200L);
+        version.getRequirements().add(r1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> {
+            ProjectVersion v = inv.getArgument(0);
+            long epicId = 300L;
+            for (Epic e : v.getEpics()) {
+                e.setId(epicId++);
+            }
+            return v;
+        });
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"title": "User onboarding", "description": "Covers account creation and first-time setup."},
+                          {"title": "Billing", "description": "Covers plan selection and payment processing."}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.generateEpics(1L, 1);
+
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.EPICS_GENERATED);
+        assertThat(response.epics()).hasSize(2);
+        assertThat(response.epics().get(0).title()).isEqualTo("User onboarding");
+        assertThat(response.epics().get(0).orderIndex()).isEqualTo(0);
+        assertThat(response.epics().get(1).title()).isEqualTo("Billing");
+        assertThat(response.epics().get(1).orderIndex()).isEqualTo(1);
+    }
+
+    @Test
+    void generateEpicsThrowsNotFoundWhenNoMatchingVersion() {
+        projectService = newService();
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.generateEpics(1L, 1))
+                .isInstanceOf(ProjectVersionNotFoundException.class);
+    }
+
+    @Test
+    void generateEpicsThrowsWhenRequirementsNotYetGenerated() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.AWAITING_ANSWERS);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateEpics(1L, 1))
+                .isInstanceOf(InvalidProjectVersionStatusException.class);
+    }
+
+    @Test
+    void generateEpicsThrowsWhenRequirementsListIsEmpty() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateEpics(1L, 1)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void generateEpicsThrowsAiResponseParsingExceptionWhenAiReturnsInvalidJson() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        version.setId(10L);
+        Requirement r1 = new Requirement(
+                version, RequirementType.FUNCTIONAL, "User registration", "Users can sign up with email.", 0);
+        r1.setId(200L);
+        version.getRequirements().add(r1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(aiClient.complete(any())).thenReturn("not valid json");
+
+        assertThatThrownBy(() -> projectService.generateEpics(1L, 1))
                 .isInstanceOf(AiResponseParsingException.class);
     }
 }

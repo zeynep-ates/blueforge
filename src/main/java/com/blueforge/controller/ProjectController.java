@@ -42,4 +42,10 @@ public class ProjectController {
             @Valid @RequestBody SubmitAnswersRequest request) {
         return ResponseEntity.ok(projectService.submitAnswers(projectId, versionNumber, request));
     }
+
+    @PostMapping("/{projectId}/versions/{versionNumber}/epics")
+    public ResponseEntity<ProjectVersionResponse> generateEpics(
+            @PathVariable Long projectId, @PathVariable int versionNumber) {
+        return ResponseEntity.ok(projectService.generateEpics(projectId, versionNumber));
+    }
 }

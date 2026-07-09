@@ -5,11 +5,13 @@ import com.blueforge.dto.AnswerRequest;
 import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
+import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
+import com.blueforge.entity.Epic;
 import com.blueforge.entity.Project;
 import com.blueforge.entity.ProjectVersion;
 import com.blueforge.entity.ProjectVersionStatus;
@@ -42,6 +44,7 @@ public class ProjectService {
     private final ObjectMapper objectMapper;
     private final String clarifyingQuestionsPromptTemplate;
     private final String requirementsPromptTemplate;
+    private final String epicsPromptTemplate;
 
     public ProjectService(
             ProjectRepository projectRepository,
@@ -54,6 +57,7 @@ public class ProjectService {
         this.objectMapper = objectMapper;
         this.clarifyingQuestionsPromptTemplate = loadPromptTemplate("prompts/clarifying-questions.txt");
         this.requirementsPromptTemplate = loadPromptTemplate("prompts/requirements.txt");
+        this.epicsPromptTemplate = loadPromptTemplate("prompts/epics.txt");
     }
 
     @Transactional
@@ -107,6 +111,33 @@ public class ProjectService {
         return toProjectVersionResponse(projectId, version);
     }
 
+    @Transactional
+    public ProjectVersionResponse generateEpics(Long projectId, int versionNumber) {
+        ProjectVersion version = projectVersionRepository
+                .findByProjectIdAndVersionNumber(projectId, versionNumber)
+                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+
+        if (version.getStatus() != ProjectVersionStatus.REQUIREMENTS_GENERATED) {
+            throw new InvalidProjectVersionStatusException(
+                    projectId, versionNumber, ProjectVersionStatus.REQUIREMENTS_GENERATED, version.getStatus());
+        }
+        if (version.getRequirements().isEmpty()) {
+            throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
+                    + " reached " + ProjectVersionStatus.REQUIREMENTS_GENERATED + " with no requirements");
+        }
+
+        List<GeneratedEpic> generatedEpics = requestEpicsFromAi(version);
+        for (int i = 0; i < generatedEpics.size(); i++) {
+            GeneratedEpic generated = generatedEpics.get(i);
+            version.getEpics().add(new Epic(version, generated.title(), generated.description(), i));
+        }
+        version.setStatus(ProjectVersionStatus.EPICS_GENERATED);
+
+        version = projectVersionRepository.save(version);
+
+        return toProjectVersionResponse(projectId, version);
+    }
+
     private void applyAnswers(ProjectVersion version, List<AnswerRequest> answers) {
         Map<Long, ClarifyingQuestion> questionsById = version.getClarifyingQuestions().stream()
                 .collect(Collectors.toMap(ClarifyingQuestion::getId, Function.identity()));
@@ -140,7 +171,8 @@ public class ProjectService {
                 version.getChangeDescription(),
                 version.getStatus(),
                 toQuestionResponses(version),
-                toRequirementResponses(version));
+                toRequirementResponses(version),
+                toEpicResponses(version));
     }
 
     private static List<ClarifyingQuestionResponse> toQuestionResponses(ProjectVersion version) {
@@ -157,6 +189,12 @@ public class ProjectService {
         return version.getRequirements().stream()
                 .map(r -> new RequirementResponse(
                         r.getId(), r.getType(), r.getTitle(), r.getDescription(), r.getOrderIndex()))
+                .toList();
+    }
+
+    private static List<EpicResponse> toEpicResponses(ProjectVersion version) {
+        return version.getEpics().stream()
+                .map(e -> new EpicResponse(e.getId(), e.getTitle(), e.getDescription(), e.getOrderIndex()))
                 .toList();
     }
 
@@ -190,6 +228,25 @@ public class ProjectService {
                 .collect(Collectors.joining("\n\n"));
     }
 
+    private List<GeneratedEpic> requestEpicsFromAi(ProjectVersion version) {
+        String prompt = epicsPromptTemplate
+                .replace("{{ideaDescription}}", version.getIdeaSnapshot())
+                .replace("{{requirements}}", formatRequirements(version));
+        String rawResponse = aiClient.complete(prompt);
+        try {
+            return objectMapper.readValue(rawResponse, new TypeReference<List<GeneratedEpic>>() {});
+        } catch (JsonProcessingException e) {
+            throw new AiResponseParsingException(
+                    "AI returned a response that could not be parsed as a JSON array of epics", e);
+        }
+    }
+
+    private static String formatRequirements(ProjectVersion version) {
+        return version.getRequirements().stream()
+                .map(r -> "[" + r.getType() + "] " + r.getTitle() + ": " + r.getDescription())
+                .collect(Collectors.joining("\n"));
+    }
+
     private static String loadPromptTemplate(String classpathLocation) {
         try {
             return new ClassPathResource(classpathLocation).getContentAsString(StandardCharsets.UTF_8);
@@ -199,4 +256,6 @@ public class ProjectService {
     }
 
     private record GeneratedRequirement(RequirementType type, String title, String description) {}
+
+    private record GeneratedEpic(String title, String description) {}
 }

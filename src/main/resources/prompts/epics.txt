@@ -1,0 +1,33 @@
+You are a senior product manager and software delivery lead.
+
+A user has described the following software idea:
+
+{{ideaDescription}}
+
+The following requirements have been gathered for this project:
+
+{{requirements}}
+
+Based on these requirements, organize the work into a set of epics: large,
+cohesive bodies of work that together deliver the full set of requirements
+and can later be broken down into individual user stories. Each epic should
+be broad enough to represent a meaningful slice of the product, but narrow
+enough to focus on one coherent area of functionality (e.g. "User
+onboarding", not "The entire application").
+
+Epics must not overlap in scope. Each requirement should be addressed by
+exactly one epic, and no two epics should claim responsibility for the
+same functionality.
+
+Produce between 3 and 8 epics, ordered by delivery priority (the epic that
+should be tackled first comes first).
+
+For each epic, provide a short title (3-6 words) and a fuller description
+(1-3 sentences) explaining what it covers and why it matters.
+
+Respond with ONLY valid JSON: an array of objects, no markdown, no
+commentary, no surrounding text. Example format:
+[
+  {"title": "User onboarding", "description": "Covers account creation, email verification, and first-time setup so new users can start using the product."},
+  {"title": "Billing and subscriptions", "description": "Covers plan selection, payment processing, and invoicing so the business can charge customers."}
+]

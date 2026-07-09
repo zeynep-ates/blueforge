@@ -11,4 +11,5 @@ public record ProjectVersionResponse(
         String changeDescription,
         ProjectVersionStatus status,
         List<ClarifyingQuestionResponse> questions,
-        List<RequirementResponse> requirements) {}
+        List<RequirementResponse> requirements,
+        List<EpicResponse> epics) {}
