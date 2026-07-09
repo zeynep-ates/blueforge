@@ -146,7 +146,146 @@ export interface SubmitAnswersRequest {
   answers?: AnswerRequest[];
 }
 
+export type ProjectSummaryResponseLatestStatus = typeof ProjectSummaryResponseLatestStatus[keyof typeof ProjectSummaryResponseLatestStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ProjectSummaryResponseLatestStatus = {
+  AWAITING_ANSWERS: 'AWAITING_ANSWERS',
+  REQUIREMENTS_GENERATED: 'REQUIREMENTS_GENERATED',
+  EPICS_GENERATED: 'EPICS_GENERATED',
+  USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
+  TASKS_GENERATED: 'TASKS_GENERATED',
+} as const;
+
+export interface ProjectSummaryResponse {
+  id?: number;
+  name?: string;
+  createdAt?: string;
+  latestVersionNumber?: number;
+  latestStatus?: ProjectSummaryResponseLatestStatus;
+}
+
+export interface ProjectDetailResponse {
+  id?: number;
+  name?: string;
+  createdAt?: string;
+  versions?: ProjectVersionSummaryResponse[];
+}
+
+export type ProjectVersionSummaryResponseStatus = typeof ProjectVersionSummaryResponseStatus[keyof typeof ProjectVersionSummaryResponseStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ProjectVersionSummaryResponseStatus = {
+  AWAITING_ANSWERS: 'AWAITING_ANSWERS',
+  REQUIREMENTS_GENERATED: 'REQUIREMENTS_GENERATED',
+  EPICS_GENERATED: 'EPICS_GENERATED',
+  USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
+  TASKS_GENERATED: 'TASKS_GENERATED',
+} as const;
+
+export interface ProjectVersionSummaryResponse {
+  versionId?: number;
+  versionNumber?: number;
+  status?: ProjectVersionSummaryResponseStatus;
+}
+
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+export const getListProjectsUrl = () => {
+
+
+  
+
+  return `/api/projects`
+}
+
+export const listProjects = async ( options?: RequestInit): Promise<ProjectSummaryResponse[]> => {
+  
+  return apiFetch<ProjectSummaryResponse[]>(getListProjectsUrl(),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getListProjectsQueryKey = () => {
+    return [
+    `/api/projects`
+    ] as const;
+    }
+
+    
+export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectsQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjects>>> = ({ signal }) => listProjects({ signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjects>>>
+export type ListProjectsQueryError = unknown
+
+
+export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProjects>>,
+          TError,
+          Awaited<ReturnType<typeof listProjects>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProjects>>,
+          TError,
+          Awaited<ReturnType<typeof listProjects>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
 
 
 
@@ -486,6 +625,194 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(mutationOptions, queryClient);
     }
     
+export const getGetProjectUrl = (projectId: number,) => {
+
+
+  
+
+  return `/api/projects/${projectId}`
+}
+
+export const getProject = async (projectId: number, options?: RequestInit): Promise<ProjectDetailResponse> => {
+  
+  return apiFetch<ProjectDetailResponse>(getGetProjectUrl(projectId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getGetProjectQueryKey = (projectId?: number,) => {
+    return [
+    `/api/projects/${projectId}`
+    ] as const;
+    }
+
+    
+export const getGetProjectQueryOptions = <TData = Awaited<ReturnType<typeof getProject>>, TError = unknown>(projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectQueryKey(projectId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProject>>> = ({ signal }) => getProject(projectId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProjectQueryResult = NonNullable<Awaited<ReturnType<typeof getProject>>>
+export type GetProjectQueryError = unknown
+
+
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = unknown>(
+ projectId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProject>>,
+          TError,
+          Awaited<ReturnType<typeof getProject>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = unknown>(
+ projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProject>>,
+          TError,
+          Awaited<ReturnType<typeof getProject>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = unknown>(
+ projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = unknown>(
+ projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetProjectQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListVersionsUrl = (projectId: number,) => {
+
+
+  
+
+  return `/api/projects/${projectId}/versions`
+}
+
+export const listVersions = async (projectId: number, options?: RequestInit): Promise<ProjectVersionSummaryResponse[]> => {
+  
+  return apiFetch<ProjectVersionSummaryResponse[]>(getListVersionsUrl(projectId),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getListVersionsQueryKey = (projectId?: number,) => {
+    return [
+    `/api/projects/${projectId}/versions`
+    ] as const;
+    }
+
+    
+export const getListVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listVersions>>, TError = unknown>(projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVersions>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVersionsQueryKey(projectId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVersions>>> = ({ signal }) => listVersions(projectId, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVersions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listVersions>>>
+export type ListVersionsQueryError = unknown
+
+
+export function useListVersions<TData = Awaited<ReturnType<typeof listVersions>>, TError = unknown>(
+ projectId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVersions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVersions>>,
+          TError,
+          Awaited<ReturnType<typeof listVersions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVersions<TData = Awaited<ReturnType<typeof listVersions>>, TError = unknown>(
+ projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVersions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listVersions>>,
+          TError,
+          Awaited<ReturnType<typeof listVersions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListVersions<TData = Awaited<ReturnType<typeof listVersions>>, TError = unknown>(
+ projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVersions>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListVersions<TData = Awaited<ReturnType<typeof listVersions>>, TError = unknown>(
+ projectId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listVersions>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListVersionsQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
 export const getGetProjectVersionUrl = (projectId: number,
     versionNumber: number,) => {
 

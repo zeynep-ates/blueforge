@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Lock } from 'lucide-react'
+import { CheckCircle2, Circle, FolderOpen, Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Logo } from '@/components/Logo'
@@ -37,6 +37,18 @@ export function WorkspaceSidebar({ version }: { version: ProjectVersionResponse 
         </Link>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link to={`/projects/${version.projectId}`} />} tooltip="Back to project">
+                  <FolderOpen className="size-4" />
+                  <span>Back to project</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Pipeline</SidebarGroupLabel>
           <SidebarGroupContent>

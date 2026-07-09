@@ -67,3 +67,22 @@ export function stageStatesFor(version: Pick<ProjectVersionResponse, 'status'>) 
     StageState
   >
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  AWAITING_ANSWERS: 'Awaiting answers',
+  REQUIREMENTS_GENERATED: 'Requirements generated',
+  EPICS_GENERATED: 'Epics generated',
+  USER_STORIES_GENERATED: 'User stories generated',
+  TASKS_GENERATED: 'Tasks generated',
+}
+
+/**
+ * Accepts a plain string rather than ProjectVersionResponseStatus because
+ * Orval generates a distinct (structurally identical) enum type per response
+ * shape, e.g. ProjectSummaryResponseLatestStatus and
+ * ProjectVersionSummaryResponseStatus.
+ */
+export function statusLabel(status: string | undefined): string {
+  if (!status) return 'Unknown'
+  return STATUS_LABELS[status] ?? status
+}

@@ -1,6 +1,6 @@
 import { Clock, FolderOpen, Lightbulb, Loader2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCreateProject } from '@/api/generated'
 import { Logo } from '@/components/Logo'
 import { ModeToggle } from '@/components/mode-toggle'
@@ -36,7 +36,11 @@ export function NewIdeaPage() {
 
   return (
     <div className="from-background to-accent/10 min-h-svh bg-gradient-to-b">
-      <div className="flex justify-end p-4">
+      <div className="flex justify-end gap-2 p-4">
+        <Button render={<Link to="/projects" />} variant="outline" className="gap-1.5">
+          <FolderOpen className="size-4" />
+          All projects
+        </Button>
         <ModeToggle />
       </div>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-10 p-8 pt-4">
