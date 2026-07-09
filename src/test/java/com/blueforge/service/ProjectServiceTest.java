@@ -1003,5 +1003,114 @@ class ProjectServiceTest {
         assertThatThrownBy(() -> projectService.regenerateVersion(
                         1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.EPICS_GENERATED, null)))
                 .isInstanceOf(AiResponseParsingException.class);
+
+        verify(projectVersionRepository, never()).save(any());
+    }
+
+    @Test
+    void regenerateVersionForTasksClonesEpicsAndUserStoriesMatchedByIndexAcrossDifferingStoryCounts() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        base.setId(10L);
+
+        Epic epic1 = new Epic(base, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        UserStory epic1Story1 = new UserStory(
+                epic1, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        epic1Story1.setId(400L);
+        epic1.getUserStories().add(epic1Story1);
+
+        Epic epic2 = new Epic(base, "Billing", "Covers payment processing.", 1);
+        epic2.setId(301L);
+        UserStory epic2Story1 =
+                new UserStory(epic2, "Select a plan", "As a customer, I want to choose a plan.", "- Plans listed", 0);
+        epic2Story1.setId(401L);
+        UserStory epic2Story2 = new UserStory(
+                epic2, "Enter payment details", "As a customer, I want to pay.", "- Card details submitted", 1);
+        epic2Story2.setId(402L);
+        epic2.getUserStories().addAll(List.of(epic2Story1, epic2Story2));
+
+        base.getEpics().addAll(List.of(epic1, epic2));
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(base));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"tasks": [
+                            {"title": "Add POST /register endpoint", "description": "Implement registration.", "priority": "HIGH", "effortEstimate": "M"}
+                          ]}
+                        ]
+                        """,
+                        """
+                        [
+                          {"tasks": [
+                            {"title": "Add plan selection UI", "description": "Build plan selection screen.", "priority": "HIGH", "effortEstimate": "M"}
+                          ]},
+                          {"tasks": [
+                            {"title": "Add payment form", "description": "Build payment entry form.", "priority": "MEDIUM", "effortEstimate": "L"}
+                          ]}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.regenerateVersion(
+                1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.TASKS_GENERATED, null));
+
+        assertThat(response.versionNumber()).isEqualTo(2);
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.TASKS_GENERATED);
+        assertThat(response.epics()).hasSize(2);
+        assertThat(response.epics().get(0).title()).isEqualTo("User onboarding");
+        assertThat(response.epics().get(1).title()).isEqualTo("Billing");
+        assertThat(response.userStories()).hasSize(3);
+        assertThat(response.userStories()).extracting("title")
+                .containsExactly("Email sign-up", "Select a plan", "Enter payment details");
+        // Cloned user stories must reference the cloned epics (new ids), not the base version's original epic ids.
+        assertThat(response.userStories().get(0).epicId()).isEqualTo(response.epics().get(0).id());
+        assertThat(response.userStories().get(1).epicId()).isEqualTo(response.epics().get(1).id());
+        assertThat(response.userStories().get(2).epicId()).isEqualTo(response.epics().get(1).id());
+        assertThat(response.tasks()).hasSize(3);
+        assertThat(response.tasks()).extracting("title")
+                .containsExactly("Add POST /register endpoint", "Add plan selection UI", "Add payment form");
+
+        assertThat(base.getEpics().get(1).getUserStories()).hasSize(2);
+    }
+
+    @Test
+    void regenerateVersionAssignsNextVersionNumberAfterExistingVersions() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion v1 = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        v1.setId(10L);
+        ProjectVersion v2 = new ProjectVersion(project, 2, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        v2.setId(11L);
+        ProjectVersion v3 = new ProjectVersion(project, 3, "An idea", ProjectVersionStatus.REQUIREMENTS_GENERATED);
+        v3.setId(12L);
+        ClarifyingQuestion q1 = new ClarifyingQuestion(v3, "What is the primary user type?", 0);
+        q1.setId(100L);
+        q1.setAnswer(new ClarifyingAnswer(q1, "End consumers"));
+        v3.getClarifyingQuestions().add(q1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 3)).thenReturn(Optional.of(v3));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(v1, v2, v3));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"type": "FUNCTIONAL", "title": "Fresh requirement", "description": "A fresh take."}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.regenerateVersion(
+                1L, 3, new RegenerateVersionRequest(ProjectVersionStatus.REQUIREMENTS_GENERATED, null));
+
+        assertThat(response.versionNumber()).isEqualTo(4);
     }
 }

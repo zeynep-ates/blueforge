@@ -59,6 +59,12 @@ public class ProjectService {
     private final String userStoriesPromptTemplate;
     private final String tasksPromptTemplate;
 
+    private static final List<ProjectVersionStatus> REGENERABLE_STAGES = List.of(
+            ProjectVersionStatus.REQUIREMENTS_GENERATED,
+            ProjectVersionStatus.EPICS_GENERATED,
+            ProjectVersionStatus.USER_STORIES_GENERATED,
+            ProjectVersionStatus.TASKS_GENERATED);
+
     public ProjectService(
             ProjectRepository projectRepository,
             ProjectVersionRepository projectVersionRepository,
@@ -293,12 +299,6 @@ public class ProjectService {
         version.setStatus(ProjectVersionStatus.TASKS_GENERATED);
     }
 
-    private static final List<ProjectVersionStatus> REGENERABLE_STAGES = List.of(
-            ProjectVersionStatus.REQUIREMENTS_GENERATED,
-            ProjectVersionStatus.EPICS_GENERATED,
-            ProjectVersionStatus.USER_STORIES_GENERATED,
-            ProjectVersionStatus.TASKS_GENERATED);
-
     @Transactional
     public ProjectVersionResponse regenerateVersion(
             Long projectId, int baseVersionNumber, RegenerateVersionRequest request) {
@@ -342,8 +342,12 @@ public class ProjectService {
     }
 
     private int nextVersionNumber(Long projectId) {
+        return findLatestVersion(projectId).getVersionNumber() + 1;
+    }
+
+    private ProjectVersion findLatestVersion(Long projectId) {
         List<ProjectVersion> versions = projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(projectId);
-        return versions.get(versions.size() - 1).getVersionNumber() + 1;
+        return versions.get(versions.size() - 1);
     }
 
     private static void cloneQuestionsAndAnswers(ProjectVersion base, ProjectVersion target) {
@@ -375,6 +379,7 @@ public class ProjectService {
         }
     }
 
+    // Requires cloneEpicsShell to have already populated target's epics in the same order as base's.
     private static void cloneUserStoriesInto(ProjectVersion base, ProjectVersion target) {
         List<Epic> baseEpics = base.getEpics();
         List<Epic> targetEpics = target.getEpics();
@@ -432,8 +437,7 @@ public class ProjectService {
     }
 
     private ProjectSummaryResponse toProjectSummaryResponse(Project project) {
-        List<ProjectVersion> versions = projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(project.getId());
-        ProjectVersion latest = versions.get(versions.size() - 1);
+        ProjectVersion latest = findLatestVersion(project.getId());
         return new ProjectSummaryResponse(
                 project.getId(), project.getName(), project.getCreatedAt(), latest.getVersionNumber(), latest.getStatus());
     }
