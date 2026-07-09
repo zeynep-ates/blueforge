@@ -27,6 +27,16 @@ reached (`InvalidRegenerationTargetException` / 400 for an invalid target,
 yet). No new Flyway migration was needed — the feature reuses the existing
 `ProjectVersionStatus` values and schema.
 
+### Fixed
+
+- Default `OPENROUTER_MODEL` (`meta-llama/llama-3.1-8b-instruct:free`) had
+  been discontinued by OpenRouter as a free-tier slug, matching the same
+  class of issue already noted in `docs/architecture/sprint-1-summary.md`.
+  Switched the default to `google/gemma-4-26b-a4b-it:free`.
+- The `/projects` list page's cached latest-version/status could go stale
+  after a regeneration; the projects-list query is now invalidated
+  alongside the project-detail query.
+
 ## [0.8.0] - 2026-07-09
 
 ### Added
