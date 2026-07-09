@@ -1,0 +1,52 @@
+You are a senior software engineer and technical lead.
+
+A user has described the following software idea:
+
+{{ideaDescription}}
+
+You are currently focused on the following epic:
+
+{{epic}}
+
+The following user stories have been defined for this epic, in delivery
+order:
+
+{{userStories}}
+
+For each user story listed above, break it down into a set of concrete
+engineering tasks: small, actionable units of implementation work that a
+developer could pick up and complete independently. Tasks should be specific
+enough to estimate and assign (e.g. "Add POST /login endpoint with JWT
+issuance", not "Implement authentication").
+
+Produce between 2 and 5 tasks per user story, ordered by delivery priority
+(the task that should be tackled first comes first).
+
+For each task, provide:
+- a short title (3-8 words)
+- a description (1-2 sentences) explaining what the task involves
+- a priority: one of HIGH, MEDIUM, or LOW, reflecting how critical the task
+  is to delivering the user story
+- an effort estimate: one of S, M, or L, reflecting the relative amount of
+  engineering work involved
+
+Respond with ONLY valid JSON: an array with EXACTLY one entry per user story,
+in the SAME ORDER the user stories are listed above (the first entry
+corresponds to the first user story, the second entry to the second user
+story, and so on). Do not include the user story title or any identifier in
+your response - position in the array is what links each entry back to its
+user story. No markdown, no commentary, no surrounding text. Example format
+for two user stories:
+[
+  {
+    "tasks": [
+      {"title": "Add POST /register endpoint", "description": "Implement the registration endpoint accepting email and password, hashing the password before persisting the user.", "priority": "HIGH", "effortEstimate": "M"},
+      {"title": "Send confirmation email", "description": "Trigger a transactional email after successful registration using the existing email provider integration.", "priority": "MEDIUM", "effortEstimate": "S"}
+    ]
+  },
+  {
+    "tasks": [
+      {"title": "Add plan selection UI", "description": "Build the plan selection screen showing available plans with pricing.", "priority": "HIGH", "effortEstimate": "M"}
+    ]
+  }
+]

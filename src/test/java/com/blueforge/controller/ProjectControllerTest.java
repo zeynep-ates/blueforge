@@ -18,9 +18,12 @@ import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.dto.TaskResponse;
 import com.blueforge.dto.UserStoryResponse;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.RequirementType;
+import com.blueforge.entity.TaskEffort;
+import com.blueforge.entity.TaskPriority;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
 import com.blueforge.service.ProjectService;
@@ -96,6 +99,7 @@ class ProjectControllerTest {
                         List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0, null)),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(get("/api/projects/1/versions/1"))
@@ -127,6 +131,7 @@ class ProjectControllerTest {
                                 100L, "What is the primary user type?", 0, "End consumers")),
                         List.of(new RequirementResponse(
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
+                        List.of(),
                         List.of(),
                         List.of()));
 
@@ -187,6 +192,7 @@ class ProjectControllerTest {
                         List.of(new RequirementResponse(
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
                         List.of(new EpicResponse(300L, "User onboarding", "Covers account creation.", 0)),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/epics"))
@@ -237,7 +243,8 @@ class ProjectControllerTest {
                                 "Email sign-up",
                                 "As a new user, I want to sign up with my email.",
                                 "- User can register with email and password",
-                                0))));
+                                0)),
+                        List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/user-stories"))
                 .andExpect(status().isOk())
@@ -266,5 +273,57 @@ class ProjectControllerTest {
         when(projectService.generateUserStories(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
 
         mockMvc.perform(post("/api/projects/1/versions/1/user-stories")).andExpect(status().isBadGateway());
+    }
+
+    @Test
+    void generateTasksReturnsOkWithBody() throws Exception {
+        when(projectService.generateTasks(eq(1L), eq(1)))
+                .thenReturn(new ProjectVersionResponse(
+                        10L,
+                        1L,
+                        1,
+                        "An idea",
+                        null,
+                        ProjectVersionStatus.TASKS_GENERATED,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(new TaskResponse(
+                                500L,
+                                400L,
+                                "Add POST /register endpoint",
+                                "Implement the registration endpoint.",
+                                TaskPriority.HIGH,
+                                TaskEffort.M,
+                                0))));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/tasks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("TASKS_GENERATED")))
+                .andExpect(jsonPath("$.tasks[0].title", is("Add POST /register endpoint")));
+    }
+
+    @Test
+    void generateTasksReturnsNotFoundWhenMissing() throws Exception {
+        when(projectService.generateTasks(eq(1L), eq(1))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/tasks")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void generateTasksReturnsConflictWhenUserStoriesNotYetGenerated() throws Exception {
+        when(projectService.generateTasks(eq(1L), eq(1)))
+                .thenThrow(new InvalidProjectVersionStatusException(
+                        1L, 1, ProjectVersionStatus.USER_STORIES_GENERATED, ProjectVersionStatus.EPICS_GENERATED));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/tasks")).andExpect(status().isConflict());
+    }
+
+    @Test
+    void generateTasksReturnsBadGatewayWhenAiClientFails() throws Exception {
+        when(projectService.generateTasks(eq(1L), eq(1))).thenThrow(new AiClientException("boom"));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/tasks")).andExpect(status().isBadGateway());
     }
 }

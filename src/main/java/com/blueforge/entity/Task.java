@@ -1,38 +1,35 @@
 package com.blueforge.entity;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "user_story")
+@Table(name = "task")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserStory {
+public class Task {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "epic_id", nullable = false)
-    private Epic epic;
+    @JoinColumn(name = "user_story_id", nullable = false)
+    private UserStory userStory;
 
     @Column(nullable = false)
     private String title;
@@ -40,21 +37,29 @@ public class UserStory {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "acceptance_criteria", nullable = false, columnDefinition = "TEXT")
-    private String acceptanceCriteria;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TaskPriority priority;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "effort_estimate", nullable = false, length = 20)
+    private TaskEffort effortEstimate;
 
     @Column(name = "order_index", nullable = false)
     private int orderIndex;
 
-    @OneToMany(mappedBy = "userStory", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("orderIndex ASC")
-    private List<Task> tasks = new ArrayList<>();
-
-    public UserStory(Epic epic, String title, String description, String acceptanceCriteria, int orderIndex) {
-        this.epic = epic;
+    public Task(
+            UserStory userStory,
+            String title,
+            String description,
+            TaskPriority priority,
+            TaskEffort effortEstimate,
+            int orderIndex) {
+        this.userStory = userStory;
         this.title = title;
         this.description = description;
-        this.acceptanceCriteria = acceptanceCriteria;
+        this.priority = priority;
+        this.effortEstimate = effortEstimate;
         this.orderIndex = orderIndex;
     }
 }

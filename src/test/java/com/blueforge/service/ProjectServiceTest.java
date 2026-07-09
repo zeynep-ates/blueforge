@@ -3,6 +3,9 @@ package com.blueforge.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.blueforge.ai.AiClient;
@@ -18,6 +21,9 @@ import com.blueforge.entity.ProjectVersion;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.Requirement;
 import com.blueforge.entity.RequirementType;
+import com.blueforge.entity.Task;
+import com.blueforge.entity.TaskEffort;
+import com.blueforge.entity.TaskPriority;
 import com.blueforge.entity.UserStory;
 import com.blueforge.repository.ProjectRepository;
 import com.blueforge.repository.ProjectVersionRepository;
@@ -526,6 +532,217 @@ class ProjectServiceTest {
                         """);
 
         assertThatThrownBy(() -> projectService.generateUserStories(1L, 1))
+                .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void generateTasksPersistsGeneratedTasksAndTransitionsStatus() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.USER_STORIES_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        UserStory story1 = new UserStory(
+                epic1, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        story1.setId(400L);
+        epic1.getUserStories().add(story1);
+        Epic epic2 = new Epic(version, "Billing", "Covers payment processing.", 1);
+        epic2.setId(301L);
+        UserStory story2 = new UserStory(
+                epic2, "Select a plan", "As a customer, I want to choose a plan.", "- Plans are listed", 0);
+        story2.setId(401L);
+        UserStory story3 = new UserStory(
+                epic2,
+                "Enter payment details",
+                "As a customer, I want to enter payment details.",
+                "- Card details can be submitted",
+                1);
+        story3.setId(402L);
+        epic2.getUserStories().addAll(List.of(story2, story3));
+        version.getEpics().addAll(List.of(epic1, epic2));
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> {
+            ProjectVersion v = inv.getArgument(0);
+            long taskId = 500L;
+            for (Epic e : v.getEpics()) {
+                for (UserStory s : e.getUserStories()) {
+                    for (Task t : s.getTasks()) {
+                        t.setId(taskId++);
+                    }
+                }
+            }
+            return v;
+        });
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"tasks": [
+                            {"title": "Add POST /register endpoint", "description": "Implement registration.", "priority": "HIGH", "effortEstimate": "M"}
+                          ]}
+                        ]
+                        """,
+                        """
+                        [
+                          {"tasks": [
+                            {"title": "Add plan selection UI", "description": "Build plan selection screen.", "priority": "HIGH", "effortEstimate": "M"}
+                          ]},
+                          {"tasks": [
+                            {"title": "Add payment form", "description": "Build payment entry form.", "priority": "MEDIUM", "effortEstimate": "L"},
+                            {"title": "Integrate payment gateway", "description": "Connect to the payment provider API.", "priority": "HIGH", "effortEstimate": "L"}
+                          ]}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.generateTasks(1L, 1);
+
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.TASKS_GENERATED);
+        assertThat(response.tasks()).hasSize(4);
+        assertThat(response.tasks().get(0).userStoryId()).isEqualTo(400L);
+        assertThat(response.tasks().get(0).title()).isEqualTo("Add POST /register endpoint");
+        assertThat(response.tasks().get(0).priority()).isEqualTo(TaskPriority.HIGH);
+        assertThat(response.tasks().get(0).effortEstimate()).isEqualTo(TaskEffort.M);
+        assertThat(response.tasks().get(0).orderIndex()).isEqualTo(0);
+        assertThat(response.tasks().get(1).userStoryId()).isEqualTo(401L);
+        assertThat(response.tasks().get(1).title()).isEqualTo("Add plan selection UI");
+        assertThat(response.tasks().get(1).orderIndex()).isEqualTo(0);
+        assertThat(response.tasks().get(2).userStoryId()).isEqualTo(402L);
+        assertThat(response.tasks().get(2).title()).isEqualTo("Add payment form");
+        assertThat(response.tasks().get(2).orderIndex()).isEqualTo(0);
+        assertThat(response.tasks().get(3).userStoryId()).isEqualTo(402L);
+        assertThat(response.tasks().get(3).title()).isEqualTo("Integrate payment gateway");
+        assertThat(response.tasks().get(3).orderIndex()).isEqualTo(1);
+
+        verify(aiClient, times(2)).complete(any());
+    }
+
+    @Test
+    void generateTasksThrowsNotFoundWhenNoMatchingVersion() {
+        projectService = newService();
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.generateTasks(1L, 1))
+                .isInstanceOf(ProjectVersionNotFoundException.class);
+    }
+
+    @Test
+    void generateTasksThrowsWhenUserStoriesNotYetGenerated() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.EPICS_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateTasks(1L, 1))
+                .isInstanceOf(InvalidProjectVersionStatusException.class);
+    }
+
+    @Test
+    void generateTasksThrowsWhenEpicsListIsEmpty() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.USER_STORIES_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateTasks(1L, 1)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void generateTasksThrowsWhenAnyEpicHasNoUserStories() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.USER_STORIES_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        UserStory story1 = new UserStory(
+                epic1, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        story1.setId(400L);
+        epic1.getUserStories().add(story1);
+        Epic epic2 = new Epic(version, "Billing", "Covers payment processing.", 1);
+        epic2.setId(301L);
+        version.getEpics().addAll(List.of(epic1, epic2));
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateTasks(1L, 1)).isInstanceOf(IllegalStateException.class);
+
+        verify(aiClient, never()).complete(any());
+    }
+
+    @Test
+    void generateTasksThrowsAiResponseParsingExceptionWhenAiReturnsInvalidJson() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.USER_STORIES_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        UserStory story1 = new UserStory(
+                epic1, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        story1.setId(400L);
+        epic1.getUserStories().add(story1);
+        version.getEpics().add(epic1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(aiClient.complete(any())).thenReturn("not valid json");
+
+        assertThatThrownBy(() -> projectService.generateTasks(1L, 1))
+                .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void generateTasksThrowsAiResponseParsingExceptionWhenUserStoryCountMismatch() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.USER_STORIES_GENERATED);
+        version.setId(10L);
+        Epic epic1 = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic1.setId(300L);
+        UserStory story1 = new UserStory(
+                epic1, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        story1.setId(400L);
+        UserStory story2 = new UserStory(
+                epic1, "Password reset", "As a user, I want to reset my password.", "- User can request reset", 1);
+        story2.setId(401L);
+        epic1.getUserStories().addAll(List.of(story1, story2));
+        version.getEpics().add(epic1);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"tasks": [
+                            {"title": "Add POST /register endpoint", "description": "Implement registration.", "priority": "HIGH", "effortEstimate": "M"}
+                          ]}
+                        ]
+                        """);
+
+        assertThatThrownBy(() -> projectService.generateTasks(1L, 1))
                 .isInstanceOf(AiResponseParsingException.class);
     }
 }

@@ -9,6 +9,7 @@ import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.dto.TaskResponse;
 import com.blueforge.dto.UserStoryResponse;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
@@ -18,6 +19,9 @@ import com.blueforge.entity.ProjectVersion;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.Requirement;
 import com.blueforge.entity.RequirementType;
+import com.blueforge.entity.Task;
+import com.blueforge.entity.TaskEffort;
+import com.blueforge.entity.TaskPriority;
 import com.blueforge.entity.UserStory;
 import com.blueforge.repository.ProjectRepository;
 import com.blueforge.repository.ProjectVersionRepository;
@@ -49,6 +53,7 @@ public class ProjectService {
     private final String requirementsPromptTemplate;
     private final String epicsPromptTemplate;
     private final String userStoriesPromptTemplate;
+    private final String tasksPromptTemplate;
 
     public ProjectService(
             ProjectRepository projectRepository,
@@ -63,6 +68,7 @@ public class ProjectService {
         this.requirementsPromptTemplate = loadPromptTemplate("prompts/requirements.txt");
         this.epicsPromptTemplate = loadPromptTemplate("prompts/epics.txt");
         this.userStoriesPromptTemplate = loadPromptTemplate("prompts/user-stories.txt");
+        this.tasksPromptTemplate = loadPromptTemplate("prompts/tasks.txt");
     }
 
     @Transactional
@@ -181,6 +187,60 @@ public class ProjectService {
         return toProjectVersionResponse(projectId, version);
     }
 
+    @Transactional
+    public ProjectVersionResponse generateTasks(Long projectId, int versionNumber) {
+        ProjectVersion version = projectVersionRepository
+                .findByProjectIdAndVersionNumber(projectId, versionNumber)
+                .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
+
+        if (version.getStatus() != ProjectVersionStatus.USER_STORIES_GENERATED) {
+            throw new InvalidProjectVersionStatusException(
+                    projectId, versionNumber, ProjectVersionStatus.USER_STORIES_GENERATED, version.getStatus());
+        }
+
+        List<Epic> epics = version.getEpics();
+        if (epics.isEmpty()) {
+            throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
+                    + " reached " + ProjectVersionStatus.USER_STORIES_GENERATED + " with no epics");
+        }
+        for (Epic epic : epics) {
+            if (epic.getUserStories().isEmpty()) {
+                throw new IllegalStateException("Version " + versionNumber + " of project " + projectId
+                        + " reached " + ProjectVersionStatus.USER_STORIES_GENERATED + " with epic " + epic.getId()
+                        + " having no user stories");
+            }
+        }
+
+        for (Epic epic : epics) {
+            List<UserStory> stories = epic.getUserStories();
+            List<GeneratedUserStoryTasks> generatedTasksByStory = requestTasksFromAi(version, epic);
+            if (generatedTasksByStory.size() != stories.size()) {
+                throw new AiResponseParsingException("AI returned tasks for " + generatedTasksByStory.size()
+                        + " user stories in epic " + epic.getId() + ", expected exactly " + stories.size());
+            }
+            for (int i = 0; i < stories.size(); i++) {
+                UserStory story = stories.get(i);
+                List<GeneratedTask> tasks = generatedTasksByStory.get(i).tasks();
+                for (int j = 0; j < tasks.size(); j++) {
+                    GeneratedTask generated = tasks.get(j);
+                    story.getTasks()
+                            .add(new Task(
+                                    story,
+                                    generated.title(),
+                                    generated.description(),
+                                    generated.priority(),
+                                    generated.effortEstimate(),
+                                    j));
+                }
+            }
+        }
+        version.setStatus(ProjectVersionStatus.TASKS_GENERATED);
+
+        version = projectVersionRepository.save(version);
+
+        return toProjectVersionResponse(projectId, version);
+    }
+
     private void applyAnswers(ProjectVersion version, List<AnswerRequest> answers) {
         Map<Long, ClarifyingQuestion> questionsById = version.getClarifyingQuestions().stream()
                 .collect(Collectors.toMap(ClarifyingQuestion::getId, Function.identity()));
@@ -216,7 +276,8 @@ public class ProjectService {
                 toQuestionResponses(version),
                 toRequirementResponses(version),
                 toEpicResponses(version),
-                toUserStoryResponses(version));
+                toUserStoryResponses(version),
+                toTaskResponses(version));
     }
 
     private static List<ClarifyingQuestionResponse> toQuestionResponses(ProjectVersion version) {
@@ -252,6 +313,21 @@ public class ProjectService {
                         s.getDescription(),
                         s.getAcceptanceCriteria(),
                         s.getOrderIndex()))
+                .toList();
+    }
+
+    private static List<TaskResponse> toTaskResponses(ProjectVersion version) {
+        return version.getEpics().stream()
+                .flatMap(e -> e.getUserStories().stream())
+                .flatMap(s -> s.getTasks().stream())
+                .map(t -> new TaskResponse(
+                        t.getId(),
+                        t.getUserStory().getId(),
+                        t.getTitle(),
+                        t.getDescription(),
+                        t.getPriority(),
+                        t.getEffortEstimate(),
+                        t.getOrderIndex()))
                 .toList();
     }
 
@@ -324,6 +400,27 @@ public class ProjectService {
                 .collect(Collectors.joining("\n"));
     }
 
+    private List<GeneratedUserStoryTasks> requestTasksFromAi(ProjectVersion version, Epic epic) {
+        String prompt = tasksPromptTemplate
+                .replace("{{ideaDescription}}", version.getIdeaSnapshot())
+                .replace("{{epic}}", epic.getTitle() + ": " + epic.getDescription())
+                .replace("{{userStories}}", formatUserStories(epic));
+        String rawResponse = aiClient.complete(prompt);
+        try {
+            return objectMapper.readValue(rawResponse, new TypeReference<List<GeneratedUserStoryTasks>>() {});
+        } catch (JsonProcessingException e) {
+            throw new AiResponseParsingException(
+                    "AI returned a response that could not be parsed as a JSON array of user story tasks", e);
+        }
+    }
+
+    private static String formatUserStories(Epic epic) {
+        List<UserStory> stories = epic.getUserStories();
+        return IntStream.range(0, stories.size())
+                .mapToObj(i -> (i + 1) + ". " + stories.get(i).getTitle() + ": " + stories.get(i).getDescription())
+                .collect(Collectors.joining("\n"));
+    }
+
     private static String loadPromptTemplate(String classpathLocation) {
         try {
             return new ClassPathResource(classpathLocation).getContentAsString(StandardCharsets.UTF_8);
@@ -339,4 +436,9 @@ public class ProjectService {
     private record GeneratedUserStory(String title, String description, String acceptanceCriteria) {}
 
     private record GeneratedEpicStories(List<GeneratedUserStory> stories) {}
+
+    private record GeneratedTask(
+            String title, String description, TaskPriority priority, TaskEffort effortEstimate) {}
+
+    private record GeneratedUserStoryTasks(List<GeneratedTask> tasks) {}
 }

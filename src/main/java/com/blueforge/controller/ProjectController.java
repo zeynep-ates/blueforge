@@ -54,4 +54,10 @@ public class ProjectController {
             @PathVariable Long projectId, @PathVariable int versionNumber) {
         return ResponseEntity.ok(projectService.generateUserStories(projectId, versionNumber));
     }
+
+    @PostMapping("/{projectId}/versions/{versionNumber}/tasks")
+    public ResponseEntity<ProjectVersionResponse> generateTasks(
+            @PathVariable Long projectId, @PathVariable int versionNumber) {
+        return ResponseEntity.ok(projectService.generateTasks(projectId, versionNumber));
+    }
 }

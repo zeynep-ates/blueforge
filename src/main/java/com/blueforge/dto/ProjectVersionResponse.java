@@ -13,4 +13,5 @@ public record ProjectVersionResponse(
         List<ClarifyingQuestionResponse> questions,
         List<RequirementResponse> requirements,
         List<EpicResponse> epics,
-        List<UserStoryResponse> userStories) {}
+        List<UserStoryResponse> userStories,
+        List<TaskResponse> tasks) {}
