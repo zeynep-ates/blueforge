@@ -2,6 +2,27 @@
 
 All notable changes to BlueForge are documented in this file.
 
+## [0.7.0] - 2026-07-09
+
+### Added
+
+- `GET /api/projects` — lists every project with its latest version number
+  and status.
+- `GET /api/projects/{id}` — project detail, including every version.
+- `GET /api/projects/{id}/versions` — a project's versions in order.
+- `/projects` frontend page: browse all projects in a table (name, latest
+  version, status, created date).
+- `/projects/:projectId` frontend page: project detail with a table of
+  versions, linking into the existing pipeline workspace.
+- "Back to project" link in the workspace sidebar, for navigating from a
+  version back to its parent project.
+
+### Fixed
+
+- Base UI's `Button` warned in the console whenever rendered polymorphically
+  as a router `Link` (`nativeButton` mismatch). It now defaults
+  `nativeButton` to `false` whenever a `render` prop is supplied.
+
 ## [0.6.0] - 2026-07-09
 
 ### Added
