@@ -12,10 +12,13 @@ The project is designed to explore backend architecture, AI integration, and pro
 
 - Create software projects from natural language descriptions
 - Generate AI-powered clarifying questions
-- Version project planning sessions
+- Submit answers and generate functional/non-functional requirements
+- Generate epics from requirements
+- Generate user stories (with acceptance criteria) from epics
+- Version project planning sessions, with each pipeline stage tracked via status
 - Retrieve previous project versions
 - Provider-independent AI abstraction
-- Transaction-safe project creation
+- Transaction-safe persistence at every stage
 - Flyway database migrations
 - Docker-based local development
 - Input validation
@@ -113,11 +116,28 @@ POST /api/projects
 Generate clarifying questions
         │
         ▼
-Persist Project + Version + Questions
+POST .../answers
+        │
+        ▼
+Generate requirements
+        │
+        ▼
+POST .../epics
+        │
+        ▼
+Generate epics
+        │
+        ▼
+POST .../user-stories
+        │
+        ▼
+Generate user stories
         │
         ▼
 Retrieve project version
 ```
+
+Each stage has its own endpoint, its own AI prompt, and its own persistence model. A project version tracks which stage it has reached and only allows the next stage to run once the previous one has completed.
 
 ---
 
@@ -159,6 +179,36 @@ Response
 ```
 GET /api/projects/{projectId}/versions/{versionNumber}
 ```
+
+---
+
+### Submit Answers
+
+```
+POST /api/projects/{projectId}/versions/{versionNumber}/answers
+```
+
+Persists answers to the clarifying questions and synchronously generates requirements.
+
+---
+
+### Generate Epics
+
+```
+POST /api/projects/{projectId}/versions/{versionNumber}/epics
+```
+
+Generates epics from the version's requirements.
+
+---
+
+### Generate User Stories
+
+```
+POST /api/projects/{projectId}/versions/{versionNumber}/user-stories
+```
+
+Generates user stories (with acceptance criteria) for every epic in the version, in a single AI call.
 
 ---
 
@@ -262,10 +312,16 @@ docs/architecture
 ### Sprint 3
 
 - Epic generation
-- User story generation
-- Task generation
 
 ### Sprint 4
+
+- User story generation
+
+### Sprint 5 (planned)
+
+- Task generation
+
+### Later
 
 - Architecture recommendations
 - Frontend application
@@ -278,11 +334,11 @@ docs/architecture
 
 Current version:
 
-**v0.1.0**
+**v0.4.0**
 
-Sprint 1 has been completed.
+Sprints 1 through 4 have been completed.
 
-The application currently supports idea submission, AI-assisted clarification, project versioning, and retrieval.
+The application currently supports idea submission, AI-assisted clarification, requirement generation, epic generation, user story generation (with acceptance criteria), project versioning, and retrieval. Each pipeline stage is exposed as its own endpoint and tracked via its own project version status.
 
 ---
 
