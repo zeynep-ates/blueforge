@@ -1,7 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CheckSquare2, Layers } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { RegenerateVersionRequestTargetStage, getGetProjectQueryKey, useGenerateTasks, useRegenerateVersion, useUpdateTask } from '@/api/generated'
+import {
+  RegenerateVersionRequestTargetStage,
+  getGetProjectQueryKey,
+  getListProjectsQueryKey,
+  useGenerateTasks,
+  useRegenerateVersion,
+  useUpdateTask,
+} from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
@@ -53,6 +60,7 @@ export function TasksSection({ version, onUpdated }: TasksSectionProps) {
       {
         onSuccess: (newVersion) => {
           queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(version.projectId!) })
+          queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() })
           onStarted()
           navigate(`/projects/${newVersion.projectId}/versions/${newVersion.versionNumber}`)
         },

@@ -1,7 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Layers } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { RegenerateVersionRequestTargetStage, getGetProjectQueryKey, useGenerateEpics, useRegenerateVersion, useUpdateEpic } from '@/api/generated'
+import {
+  RegenerateVersionRequestTargetStage,
+  getGetProjectQueryKey,
+  getListProjectsQueryKey,
+  useGenerateEpics,
+  useRegenerateVersion,
+  useUpdateEpic,
+} from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Button } from '@/components/ui/button'
 import { patchVersionArrayItem } from '@/lib/cache'
@@ -41,6 +48,7 @@ export function EpicsSection({ version, onUpdated }: EpicsSectionProps) {
       {
         onSuccess: (newVersion) => {
           queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(version.projectId!) })
+          queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() })
           onStarted()
           navigate(`/projects/${newVersion.projectId}/versions/${newVersion.versionNumber}`)
         },

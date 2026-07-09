@@ -1,7 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ListChecks } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { RegenerateVersionRequestTargetStage, getGetProjectQueryKey, useRegenerateVersion, useUpdateRequirement } from '@/api/generated'
+import {
+  RegenerateVersionRequestTargetStage,
+  getGetProjectQueryKey,
+  getListProjectsQueryKey,
+  useRegenerateVersion,
+  useUpdateRequirement,
+} from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { Badge } from '@/components/ui/badge'
 import { patchVersionArrayItem } from '@/lib/cache'
@@ -47,6 +53,7 @@ export function RequirementsSection({ version }: { version: ProjectVersionRespon
       {
         onSuccess: (newVersion) => {
           queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(version.projectId!) })
+          queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() })
           onStarted()
           navigate(`/projects/${newVersion.projectId}/versions/${newVersion.versionNumber}`)
         },
