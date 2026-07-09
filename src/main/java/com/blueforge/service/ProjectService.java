@@ -88,7 +88,8 @@ public class ProjectService {
                 .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
 
         if (version.getStatus() != ProjectVersionStatus.AWAITING_ANSWERS) {
-            throw new ProjectVersionNotAwaitingAnswersException(projectId, versionNumber, version.getStatus());
+            throw new InvalidProjectVersionStatusException(
+                    projectId, versionNumber, ProjectVersionStatus.AWAITING_ANSWERS, version.getStatus());
         }
 
         applyAnswers(version, request.answers());

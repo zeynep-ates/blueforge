@@ -196,7 +196,7 @@ class ProjectServiceTest {
         when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
 
         assertThatThrownBy(() -> projectService.submitAnswers(1L, 1, new SubmitAnswersRequest(List.of())))
-                .isInstanceOf(ProjectVersionNotAwaitingAnswersException.class);
+                .isInstanceOf(InvalidProjectVersionStatusException.class);
     }
 
     @Test

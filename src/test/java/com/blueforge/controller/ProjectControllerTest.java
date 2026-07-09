@@ -20,8 +20,8 @@ import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.RequirementType;
 import com.blueforge.service.InvalidAnswersException;
+import com.blueforge.service.InvalidProjectVersionStatusException;
 import com.blueforge.service.ProjectService;
-import com.blueforge.service.ProjectVersionNotAwaitingAnswersException;
 import com.blueforge.service.ProjectVersionNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -157,8 +157,8 @@ class ProjectControllerTest {
     @Test
     void submitAnswersReturnsConflictWhenVersionNotAwaitingAnswers() throws Exception {
         when(projectService.submitAnswers(eq(1L), eq(1), any()))
-                .thenThrow(new ProjectVersionNotAwaitingAnswersException(
-                        1L, 1, ProjectVersionStatus.REQUIREMENTS_GENERATED));
+                .thenThrow(new InvalidProjectVersionStatusException(
+                        1L, 1, ProjectVersionStatus.AWAITING_ANSWERS, ProjectVersionStatus.REQUIREMENTS_GENERATED));
 
         mockMvc.perform(post("/api/projects/1/versions/1/answers")
                         .contentType(MediaType.APPLICATION_JSON)
