@@ -236,6 +236,93 @@ export interface ProjectVersionSummaryResponse {
   versionId?: number;
   versionNumber?: number;
   status?: ProjectVersionSummaryResponseStatus;
+  changeDescription?: string;
+}
+
+export interface DiffSummary {
+  addedCount?: number;
+  removedCount?: number;
+  modifiedCount?: number;
+  unchangedCount?: number;
+}
+
+export type EpicDiffEntryChangeType = typeof EpicDiffEntryChangeType[keyof typeof EpicDiffEntryChangeType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const EpicDiffEntryChangeType = {
+  ADDED: 'ADDED',
+  REMOVED: 'REMOVED',
+  MODIFIED: 'MODIFIED',
+  UNCHANGED: 'UNCHANGED',
+} as const;
+
+export interface EpicDiffEntry {
+  changeType?: EpicDiffEntryChangeType;
+  before?: EpicResponse;
+  after?: EpicResponse;
+  userStories?: UserStoryDiffEntry[];
+}
+
+export type RequirementDiffEntryChangeType = typeof RequirementDiffEntryChangeType[keyof typeof RequirementDiffEntryChangeType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const RequirementDiffEntryChangeType = {
+  ADDED: 'ADDED',
+  REMOVED: 'REMOVED',
+  MODIFIED: 'MODIFIED',
+  UNCHANGED: 'UNCHANGED',
+} as const;
+
+export interface RequirementDiffEntry {
+  changeType?: RequirementDiffEntryChangeType;
+  before?: RequirementResponse;
+  after?: RequirementResponse;
+}
+
+export type TaskDiffEntryChangeType = typeof TaskDiffEntryChangeType[keyof typeof TaskDiffEntryChangeType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const TaskDiffEntryChangeType = {
+  ADDED: 'ADDED',
+  REMOVED: 'REMOVED',
+  MODIFIED: 'MODIFIED',
+  UNCHANGED: 'UNCHANGED',
+} as const;
+
+export interface TaskDiffEntry {
+  changeType?: TaskDiffEntryChangeType;
+  before?: TaskResponse;
+  after?: TaskResponse;
+}
+
+export type UserStoryDiffEntryChangeType = typeof UserStoryDiffEntryChangeType[keyof typeof UserStoryDiffEntryChangeType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const UserStoryDiffEntryChangeType = {
+  ADDED: 'ADDED',
+  REMOVED: 'REMOVED',
+  MODIFIED: 'MODIFIED',
+  UNCHANGED: 'UNCHANGED',
+} as const;
+
+export interface UserStoryDiffEntry {
+  changeType?: UserStoryDiffEntryChangeType;
+  before?: UserStoryResponse;
+  after?: UserStoryResponse;
+  tasks?: TaskDiffEntry[];
+}
+
+export interface VersionDiffResponse {
+  projectId?: number;
+  fromVersionNumber?: number;
+  toVersionNumber?: number;
+  summary?: DiffSummary;
+  requirements?: RequirementDiffEntry[];
+  epics?: EpicDiffEntry[];
 }
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -1288,6 +1375,116 @@ export function useGetProjectVersion<TData = Awaited<ReturnType<typeof getProjec
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetProjectVersionQueryOptions(projectId,versionNumber,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getGetVersionDiffUrl = (projectId: number,
+    fromVersion: number,
+    toVersion: number,) => {
+
+
+  
+
+  return `/api/projects/${projectId}/versions/${fromVersion}/diff/${toVersion}`
+}
+
+export const getVersionDiff = async (projectId: number,
+    fromVersion: number,
+    toVersion: number, options?: RequestInit): Promise<VersionDiffResponse> => {
+  
+  return apiFetch<VersionDiffResponse>(getGetVersionDiffUrl(projectId,fromVersion,toVersion),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getGetVersionDiffQueryKey = (projectId?: number,
+    fromVersion?: number,
+    toVersion?: number,) => {
+    return [
+    `/api/projects/${projectId}/versions/${fromVersion}/diff/${toVersion}`
+    ] as const;
+    }
+
+    
+export const getGetVersionDiffQueryOptions = <TData = Awaited<ReturnType<typeof getVersionDiff>>, TError = unknown>(projectId: number,
+    fromVersion: number,
+    toVersion: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVersionDiff>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVersionDiffQueryKey(projectId,fromVersion,toVersion);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVersionDiff>>> = ({ signal }) => getVersionDiff(projectId,fromVersion,toVersion, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(projectId && fromVersion && toVersion), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVersionDiff>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetVersionDiffQueryResult = NonNullable<Awaited<ReturnType<typeof getVersionDiff>>>
+export type GetVersionDiffQueryError = unknown
+
+
+export function useGetVersionDiff<TData = Awaited<ReturnType<typeof getVersionDiff>>, TError = unknown>(
+ projectId: number,
+    fromVersion: number,
+    toVersion: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVersionDiff>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getVersionDiff>>,
+          TError,
+          Awaited<ReturnType<typeof getVersionDiff>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetVersionDiff<TData = Awaited<ReturnType<typeof getVersionDiff>>, TError = unknown>(
+ projectId: number,
+    fromVersion: number,
+    toVersion: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVersionDiff>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getVersionDiff>>,
+          TError,
+          Awaited<ReturnType<typeof getVersionDiff>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetVersionDiff<TData = Awaited<ReturnType<typeof getVersionDiff>>, TError = unknown>(
+ projectId: number,
+    fromVersion: number,
+    toVersion: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVersionDiff>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetVersionDiff<TData = Awaited<ReturnType<typeof getVersionDiff>>, TError = unknown>(
+ projectId: number,
+    fromVersion: number,
+    toVersion: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVersionDiff>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetVersionDiffQueryOptions(projectId,fromVersion,toVersion,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -1,13 +1,77 @@
-import { ArrowLeft, FileQuestion, FolderOpen } from 'lucide-react'
+import { ArrowLeft, FileQuestion, FolderOpen, GitCompare } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useGetProject } from '@/api/generated'
+import type { ProjectVersionSummaryResponse } from '@/api/generated'
 import { Logo } from '@/components/Logo'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { statusLabel } from '@/lib/pipeline'
+
+function versionOptionLabel(version: ProjectVersionSummaryResponse) {
+  return version.changeDescription
+    ? `Version ${version.versionNumber} — ${version.changeDescription}`
+    : `Version ${version.versionNumber}`
+}
+
+function CompareVersionsControl({
+  projectId,
+  versions,
+}: {
+  projectId: number
+  versions: ProjectVersionSummaryResponse[]
+}) {
+  const navigate = useNavigate()
+  const sorted = [...versions].sort((a, b) => (a.versionNumber ?? 0) - (b.versionNumber ?? 0))
+  const [fromVersion, setFromVersion] = useState(String(sorted[sorted.length - 2]?.versionNumber ?? ''))
+  const [toVersion, setToVersion] = useState(String(sorted[sorted.length - 1]?.versionNumber ?? ''))
+
+  if (sorted.length < 2) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+      <div className="flex flex-col gap-1">
+        <span className="text-muted-foreground text-xs">From</span>
+        <Select value={fromVersion} onValueChange={setFromVersion}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {sorted.map((version) => (
+              <SelectItem key={version.versionId} value={String(version.versionNumber)}>
+                {versionOptionLabel(version)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-muted-foreground text-xs">To</span>
+        <Select value={toVersion} onValueChange={setToVersion}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {sorted.map((version) => (
+              <SelectItem key={version.versionId} value={String(version.versionNumber)}>
+                {versionOptionLabel(version)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button
+        className="gap-1.5"
+        onClick={() => navigate(`/projects/${projectId}/diff/${fromVersion}/${toVersion}`)}
+      >
+        <GitCompare className="size-4" />
+        Compare
+      </Button>
+    </div>
+  )
+}
 
 export function ProjectDetailPage() {
   const navigate = useNavigate()
@@ -64,6 +128,8 @@ export function ProjectDetailPage() {
                 Created {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'unknown date'}
               </p>
             </div>
+
+            <CompareVersionsControl projectId={projectIdNum} versions={project.versions ?? []} />
 
             <Table>
               <TableHeader>
