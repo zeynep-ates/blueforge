@@ -2,6 +2,26 @@
 
 All notable changes to BlueForge are documented in this file.
 
+## [0.8.0] - 2026-07-09
+
+### Added
+
+- `PATCH /api/requirements/{id}` — edit a requirement's title and
+  description.
+- `PATCH /api/epics/{id}` — edit an epic's title and description.
+- `PATCH /api/user-stories/{id}` — edit a user story's title, description,
+  and acceptance criteria.
+- `PATCH /api/tasks/{id}` — edit a task's title and description.
+- Dialog-based editing UI for Requirements, Epics, User Stories, and Tasks,
+  backed by a reusable `EditItemDialog` component.
+- `MethodArgumentNotValidException` handler, so validation failures on the
+  new edit endpoints return the same `ErrorResponse` shape as every other
+  endpoint.
+
+Each edit endpoint returns only the updated entity (not the full
+`ProjectVersionResponse`); the frontend patches the single matching item in
+the cached version instead of refetching.
+
 ## [0.7.0] - 2026-07-09
 
 ### Added
