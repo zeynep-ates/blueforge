@@ -42,7 +42,9 @@ class ProjectControllerTest {
     void createProjectReturnsOkWithBody() throws Exception {
         when(projectService.createProject(any()))
                 .thenReturn(new CreateProjectResponse(
-                        1L, 10L, List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0))));
+                        1L,
+                        10L,
+                        List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0, null))));
 
         mockMvc.perform(post("/api/projects")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +85,8 @@ class ProjectControllerTest {
                         "An idea",
                         null,
                         ProjectVersionStatus.AWAITING_ANSWERS,
-                        List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0))));
+                        List.of(new ClarifyingQuestionResponse(100L, "What is the primary user type?", 0, null)),
+                        List.of()));
 
         mockMvc.perform(get("/api/projects/1/versions/1"))
                 .andExpect(status().isOk())

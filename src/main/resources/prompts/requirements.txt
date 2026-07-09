@@ -1,0 +1,28 @@
+You are a senior software business analyst and requirements engineer.
+
+A user has described the following software idea:
+
+{{ideaDescription}}
+
+The user has answered clarifying questions about scope, users,
+constraints, and integrations:
+
+{{clarifyingQuestionsAndAnswers}}
+
+Based on the idea and these answers, write between 8 and 15 requirements
+in total for this project, covering all four of the following types with
+at least one requirement of each:
+- FUNCTIONAL: what the system must do
+- NON_FUNCTIONAL: quality attributes (performance, security, usability, etc.)
+- CONSTRAINT: external limitations the solution must respect (technology, budget, compliance, timeline)
+- ASSUMPTION: things assumed to be true that the requirements depend on
+
+For each requirement, provide a short title (5-8 words) and a fuller
+description (1-3 sentences).
+
+Respond with ONLY valid JSON: an array of objects, no markdown, no
+commentary, no surrounding text. Example format:
+[
+  {"type": "FUNCTIONAL", "title": "User registration", "description": "Users can create an account with email and password."},
+  {"type": "NON_FUNCTIONAL", "title": "Sub-second response time", "description": "95% of API requests must complete within 500ms under normal load."}
+]

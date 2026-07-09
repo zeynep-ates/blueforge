@@ -10,4 +10,5 @@ public record ProjectVersionResponse(
         String ideaSnapshot,
         String changeDescription,
         ProjectVersionStatus status,
-        List<ClarifyingQuestionResponse> questions) {}
+        List<ClarifyingQuestionResponse> questions,
+        List<RequirementResponse> requirements) {}
