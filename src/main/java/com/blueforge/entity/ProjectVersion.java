@@ -57,6 +57,10 @@ public class ProjectVersion {
     @OrderBy("orderIndex ASC")
     private List<Requirement> requirements = new ArrayList<>();
 
+    @OneToMany(mappedBy = "projectVersion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
+    private List<Epic> epics = new ArrayList<>();
+
     public ProjectVersion(Project project, int versionNumber, String ideaSnapshot, ProjectVersionStatus status) {
         this.project = project;
         this.versionNumber = versionNumber;
