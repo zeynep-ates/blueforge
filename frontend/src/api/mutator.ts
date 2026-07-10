@@ -1,10 +1,12 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+export const API_KEY = import.meta.env.VITE_API_KEY as string | undefined
 
 export const apiFetch = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
       ...init?.headers,
     },
   })

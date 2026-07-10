@@ -35,10 +35,12 @@ import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.RequirementType;
 import com.blueforge.entity.TaskEffort;
 import com.blueforge.entity.TaskPriority;
+import com.blueforge.service.ExportedJson;
 import com.blueforge.service.ExportedMarkdown;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
 import com.blueforge.service.InvalidRegenerationTargetException;
+import com.blueforge.service.JsonExportService;
 import com.blueforge.service.MarkdownExportService;
 import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectService;
@@ -73,6 +75,9 @@ class ProjectControllerTest {
 
     @MockitoBean
     private MarkdownExportService markdownExportService;
+
+    @MockitoBean
+    private JsonExportService jsonExportService;
 
     @Test
     void createProjectReturnsOkWithBody() throws Exception {
@@ -605,8 +610,28 @@ class ProjectControllerTest {
     }
 
     @Test
-    void exportVersionReturnsBadRequestForUnsupportedFormat() throws Exception {
+    void exportVersionReturnsJsonWithDownloadHeaders() throws Exception {
+        when(jsonExportService.export(eq(1L), eq(1)))
+                .thenReturn(new ExportedJson("test-project-v1.json", "{\n  \"versionId\" : 10\n}"));
+
         mockMvc.perform(get("/api/projects/1/versions/1/export").param("format", "json"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"test-project-v1.json\""))
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(content().string("{\n  \"versionId\" : 10\n}"));
+    }
+
+    @Test
+    void exportVersionReturnsNotFoundForJsonWhenMissing() throws Exception {
+        when(jsonExportService.export(eq(1L), eq(1))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(get("/api/projects/1/versions/1/export").param("format", "json"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void exportVersionReturnsBadRequestForUnsupportedFormat() throws Exception {
+        mockMvc.perform(get("/api/projects/1/versions/1/export").param("format", "xml"))
                 .andExpect(status().isBadRequest());
     }
 }

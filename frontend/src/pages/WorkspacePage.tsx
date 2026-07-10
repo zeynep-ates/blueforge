@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, FileQuestion, FolderOpen } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import { API_BASE_URL } from '@/api/mutator'
 import { getGetProjectVersionQueryKey, useGetProjectVersion } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { WorkspaceSidebar } from '@/components/layout/WorkspaceSidebar'
@@ -12,8 +11,10 @@ import { RequirementsSection } from '@/components/pipeline/RequirementsSection'
 import { TasksSection } from '@/components/pipeline/TasksSection'
 import { UserStoriesSection } from '@/components/pipeline/UserStoriesSection'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { downloadFile } from '@/lib/download'
 
 function WorkspaceSkeleton() {
   return (
@@ -83,19 +84,36 @@ export function WorkspacePage() {
               </span>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            render={
-              <a
-                href={`${API_BASE_URL}/api/projects/${projectIdNum}/versions/${versionNumberNum}/export?format=markdown`}
-                download
-              />
-            }
-          >
-            <Download className="size-4" />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" size="sm">
+                  <Download className="size-4" />
+                  Export
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() =>
+                  downloadFile(
+                    `/api/projects/${projectIdNum}/versions/${versionNumberNum}/export?format=markdown`,
+                  ).catch((error: unknown) => console.error('Failed to download Markdown export', error))
+                }
+              >
+                Markdown (.md)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  downloadFile(
+                    `/api/projects/${projectIdNum}/versions/${versionNumberNum}/export?format=json`,
+                  ).catch((error: unknown) => console.error('Failed to download JSON export', error))
+                }
+              >
+                JSON (.json)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
         <div className="animate-in fade-in mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 duration-300">
           <QuestionsSection version={version} onUpdated={handleUpdated} />

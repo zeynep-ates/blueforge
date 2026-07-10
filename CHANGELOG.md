@@ -2,6 +2,42 @@
 
 All notable changes to BlueForge are documented in this file.
 
+## [0.12.0] - 2026-07-10
+
+### Added
+
+- `GET /api/projects/{projectId}/versions/{versionNumber}/export?format=json`
+  — the export endpoint's second format, completing the "Should have" tier
+  from the original project plan. New `JsonExportService` pretty-prints the
+  same `ProjectVersionResponse` shape already returned by
+  `GET .../versions/{v}` (single source of truth, no duplicate mapping
+  logic), wrapped with the same `Content-Disposition: attachment` handling
+  as the Markdown export. The workspace's "Export" button is now an "Export
+  ▾" dropdown offering both formats.
+- Optional shared API-key auth: a lightweight `ApiKeyAuthFilter`
+  (`OncePerRequestFilter`, no Spring Security dependency — that's heavier
+  machinery than "simple API-key auth" needs) guards every `/api/**`
+  request behind an `X-API-Key` header, checked against
+  `BLUEFORGE_API_KEY`. Disabled entirely when that env var is unset, so
+  local development needs no setup; Swagger UI and the OpenAPI spec stay
+  open regardless. Frontend reads the same key from `VITE_API_KEY` and
+  attaches it on every request via `apiFetch`.
+  - Discovered along the way: the Export dropdown's plain `<a href
+    download>` links can't carry a custom header, so they'd have started
+    401ing silently the moment auth was enabled. Replaced with a
+    `downloadFile()` helper that fetches with the header, then triggers
+    the download from the resulting blob — required exposing
+    `Content-Disposition` via CORS (`WebConfig.exposedHeaders`), since
+    `fetch()` can't read response headers cross-origin otherwise.
+- Three integration tests against a real Postgres (`mvn verify`, Failsafe),
+  complementing the existing mocked-repository unit tests, which
+  structurally can't catch cascade/orphan-removal bugs or prove a filter
+  is actually wired into the real chain: `ProjectPipelineIT` (full idea →
+  architecture-recommendations flow, re-fetched fresh at the end),
+  `RegenerationCascadeIT` (regenerating creates a new persisted version
+  and leaves the original's row untouched), `ApiKeyAuthIT` (401 without
+  the key, 200 with it, Swagger still open).
+
 ## [0.11.0] - 2026-07-10
 
 ### Added

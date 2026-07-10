@@ -48,9 +48,15 @@ The project focuses on clean architecture, AI integration, and production-orient
 
 ### Export
 
-- Export any version's full blueprint as a Markdown document — idea, clarifying Q&A, requirements grouped by type, the Epic → User Story → Task roadmap, and architecture recommendations
-- Sections for pipeline stages the version hasn't reached yet are simply omitted
-- Downloads directly from the workspace header via an "Export" button
+- Export any version's full blueprint as Markdown or JSON — idea, clarifying Q&A, requirements grouped by type, the Epic → User Story → Task roadmap, and architecture recommendations
+- Markdown sections for pipeline stages the version hasn't reached yet are simply omitted; JSON export is the same structured response the API already returns for that version
+- Downloads directly from the workspace header via an "Export" dropdown
+
+### Authentication
+
+- Optional shared API-key auth, guarding every `/api/**` endpoint — a single secret configured via `BLUEFORGE_API_KEY`, not per-user accounts
+- Disabled entirely when unset, so local development needs no setup
+- Swagger UI and the OpenAPI spec stay open for exploration regardless
 
 ### Backend
 
@@ -245,6 +251,8 @@ docs
 
 ## API
 
+Every endpoint below is under `/api` and requires the `X-API-Key` header when `BLUEFORGE_API_KEY` is configured (see [Authentication](#authentication)).
+
 ### Create Project
 
 ```
@@ -327,6 +335,7 @@ GET /api/projects/{projectId}/versions/{fromVersion}/diff/{toVersion}
 
 ```
 GET /api/projects/{projectId}/versions/{versionNumber}/export?format=markdown
+GET /api/projects/{projectId}/versions/{versionNumber}/export?format=json
 ```
 
 Interactive API documentation:
@@ -367,6 +376,14 @@ OPENROUTER_MODEL=your_model
 
 OpenRouter's free-tier model slugs are periodically discontinued or rate-limited upstream (see `docs/architecture/sprint-1-summary.md`). If AI calls start failing with a 502, check whether `OPENROUTER_MODEL` (default: `google/gemma-4-26b-a4b-it:free`) is still listed at [openrouter.ai/models](https://openrouter.ai/models) and swap in a currently-available `:free` slug.
 
+Optionally, protect the API with a shared API key (see [Authentication](#authentication) below):
+
+```text
+BLUEFORGE_API_KEY=your_chosen_key
+```
+
+If `BLUEFORGE_API_KEY` is left unset, the API is open — this is the default for local development.
+
 Run the backend.
 
 ```bash
@@ -379,6 +396,12 @@ Run the frontend.
 cd frontend
 npm install
 npm run dev
+```
+
+If you set `BLUEFORGE_API_KEY` on the backend, the frontend needs the same value so its requests are authenticated. Create `frontend/.env.local`:
+
+```text
+VITE_API_KEY=your_chosen_key
 ```
 
 Frontend:

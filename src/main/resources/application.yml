@@ -23,3 +23,5 @@ blueforge:
       model: ${OPENROUTER_MODEL:google/gemma-4-26b-a4b-it:free}
   cors:
     allowed-origins: ${BLUEFORGE_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  security:
+    api-key: ${BLUEFORGE_API_KEY:}

@@ -9,7 +9,9 @@ import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.VersionDiffResponse;
+import com.blueforge.service.ExportedJson;
 import com.blueforge.service.ExportedMarkdown;
+import com.blueforge.service.JsonExportService;
 import com.blueforge.service.MarkdownExportService;
 import com.blueforge.service.ProjectService;
 import com.blueforge.service.UnsupportedExportFormatException;
@@ -34,14 +36,17 @@ public class ProjectController {
     private final ProjectService projectService;
     private final VersionDiffService versionDiffService;
     private final MarkdownExportService markdownExportService;
+    private final JsonExportService jsonExportService;
 
     public ProjectController(
             ProjectService projectService,
             VersionDiffService versionDiffService,
-            MarkdownExportService markdownExportService) {
+            MarkdownExportService markdownExportService,
+            JsonExportService jsonExportService) {
         this.projectService = projectService;
         this.versionDiffService = versionDiffService;
         this.markdownExportService = markdownExportService;
+        this.jsonExportService = jsonExportService;
     }
 
     @PostMapping
@@ -121,14 +126,22 @@ public class ProjectController {
             @PathVariable Long projectId,
             @PathVariable int versionNumber,
             @RequestParam(defaultValue = "markdown") String format) {
-        if (!"markdown".equalsIgnoreCase(format)) {
-            throw new UnsupportedExportFormatException(format);
+        if ("markdown".equalsIgnoreCase(format)) {
+            ExportedMarkdown export = markdownExportService.export(projectId, versionNumber);
+            return download(export.filename(), export.content(), "text/markdown");
+        }
+        if ("json".equalsIgnoreCase(format)) {
+            ExportedJson export = jsonExportService.export(projectId, versionNumber);
+            return download(export.filename(), export.content(), "application/json");
         }
 
-        ExportedMarkdown export = markdownExportService.export(projectId, versionNumber);
+        throw new UnsupportedExportFormatException(format);
+    }
+
+    private static ResponseEntity<String> download(String filename, String content, String contentType) {
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType("text/markdown"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + export.filename() + "\"")
-                .body(export.content());
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(content);
     }
 }

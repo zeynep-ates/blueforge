@@ -13,7 +13,7 @@
 
     <groupId>com.blueforge</groupId>
     <artifactId>blueforge</artifactId>
-    <version>0.11.0</version>
+    <version>0.12.0</version>
     <name>blueforge</name>
     <description>BlueForge - from software idea to technical blueprint</description>
 
