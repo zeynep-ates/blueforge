@@ -2,6 +2,33 @@
 
 All notable changes to BlueForge are documented in this file.
 
+## [0.10.0] - 2026-07-10
+
+### Added
+
+- `GET /api/projects/{projectId}/versions/{versionNumber}/export?format=markdown`
+  — renders a version's full blueprint (idea, clarifying Q&A, requirements
+  grouped by type, and the Epic → User Story → Task roadmap) as a Markdown
+  document. Reads directly from the entity graph rather than the DTO layer,
+  since `Epic.userStories` / `UserStory.tasks` are already properly nested —
+  unlike the flat, FK-linked lists on `ProjectVersionResponse`. `format` is
+  the only query param; any value other than `markdown` returns 400 via a
+  new `UnsupportedExportFormatException`, so the endpoint has room to grow a
+  `json` option later without an inconsistent shape. Sections for
+  not-yet-reached pipeline stages are simply omitted. The response sets
+  `Content-Disposition: attachment` with a slugified `{project-name}-v{n}.md`
+  filename, so hitting the endpoint directly downloads a file.
+- "Export" button in the workspace header — a plain anchor to the export
+  endpoint (no fetch/blob handling, no generated API client involved), same
+  "frontend has no business logic" precedent as the diff feature.
+
+### Changed
+
+- `docs/architecture/domain-model.md` refreshed — it still described the
+  "Checkpoint 2" schema (`Project` / `ProjectVersion` / `ClarifyingQuestion`
+  only) despite Epics, User Stories, Tasks, regeneration, and version diffing
+  having shipped since.
+
 ## [0.9.0] - 2026-07-09
 
 ### Added

@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { FileQuestion, FolderOpen } from 'lucide-react'
+import { Download, FileQuestion, FolderOpen } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
+import { API_BASE_URL } from '@/api/mutator'
 import { getGetProjectVersionQueryKey, useGetProjectVersion } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { WorkspaceSidebar } from '@/components/layout/WorkspaceSidebar'
@@ -70,7 +71,7 @@ export function WorkspacePage() {
         <header className="bg-background/95 sticky top-0 z-10 flex items-center gap-3 border-b px-4 py-3 backdrop-blur">
           <SidebarTrigger />
           <FolderOpen className="text-primary size-4 shrink-0" />
-          <div className="flex min-w-0 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-sm font-medium">
               Project {version.projectId} · Version {version.versionNumber}
             </span>
@@ -81,6 +82,19 @@ export function WorkspacePage() {
               </span>
             )}
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            render={
+              <a
+                href={`${API_BASE_URL}/api/projects/${projectIdNum}/versions/${versionNumberNum}/export?format=markdown`}
+                download
+              />
+            }
+          >
+            <Download className="size-4" />
+            Export
+          </Button>
         </header>
         <div className="animate-in fade-in mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 duration-300">
           <QuestionsSection version={version} onUpdated={handleUpdated} />

@@ -45,6 +45,12 @@ The project focuses on clean architecture, AI integration, and production-orient
 - See which Requirements, Epics, User Stories, and Tasks were added, removed, or modified, with a summary of counts by change type
 - Epics, User Stories, and Tasks are shown as a nested comparison so changes are readable in context, not just as flat lists
 
+### Export
+
+- Export any version's full blueprint as a Markdown document — idea, clarifying Q&A, requirements grouped by type, and the Epic → User Story → Task roadmap
+- Sections for pipeline stages the version hasn't reached yet are simply omitted
+- Downloads directly from the workspace header via an "Export" button
+
 ### Backend
 
 - Layered Spring Boot architecture
@@ -305,6 +311,12 @@ POST /api/projects/{projectId}/versions/{versionNumber}/regenerate
 
 ```
 GET /api/projects/{projectId}/versions/{fromVersion}/diff/{toVersion}
+```
+
+### Export Version
+
+```
+GET /api/projects/{projectId}/versions/{versionNumber}/export?format=markdown
 ```
 
 Interactive API documentation:

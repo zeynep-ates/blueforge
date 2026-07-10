@@ -9,16 +9,22 @@ import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.VersionDiffResponse;
+import com.blueforge.service.ExportedMarkdown;
+import com.blueforge.service.MarkdownExportService;
 import com.blueforge.service.ProjectService;
+import com.blueforge.service.UnsupportedExportFormatException;
 import com.blueforge.service.VersionDiffService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,10 +33,15 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final VersionDiffService versionDiffService;
+    private final MarkdownExportService markdownExportService;
 
-    public ProjectController(ProjectService projectService, VersionDiffService versionDiffService) {
+    public ProjectController(
+            ProjectService projectService,
+            VersionDiffService versionDiffService,
+            MarkdownExportService markdownExportService) {
         this.projectService = projectService;
         this.versionDiffService = versionDiffService;
+        this.markdownExportService = markdownExportService;
     }
 
     @PostMapping
@@ -97,5 +108,21 @@ public class ProjectController {
     public ResponseEntity<VersionDiffResponse> getVersionDiff(
             @PathVariable Long projectId, @PathVariable int fromVersion, @PathVariable int toVersion) {
         return ResponseEntity.ok(versionDiffService.diff(projectId, fromVersion, toVersion));
+    }
+
+    @GetMapping("/{projectId}/versions/{versionNumber}/export")
+    public ResponseEntity<String> exportVersion(
+            @PathVariable Long projectId,
+            @PathVariable int versionNumber,
+            @RequestParam(defaultValue = "markdown") String format) {
+        if (!"markdown".equalsIgnoreCase(format)) {
+            throw new UnsupportedExportFormatException(format);
+        }
+
+        ExportedMarkdown export = markdownExportService.export(projectId, versionNumber);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/markdown"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + export.filename() + "\"")
+                .body(export.content());
     }
 }

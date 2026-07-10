@@ -11,6 +11,7 @@ import com.blueforge.service.ProjectVersionNotFoundException;
 import com.blueforge.service.RegenerationNotAllowedException;
 import com.blueforge.service.RequirementNotFoundException;
 import com.blueforge.service.TaskNotFoundException;
+import com.blueforge.service.UnsupportedExportFormatException;
 import com.blueforge.service.UserStoryNotFoundException;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -47,6 +48,11 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(InvalidRegenerationTargetException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRegenerationTarget(InvalidRegenerationTargetException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(UnsupportedExportFormatException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedExportFormat(UnsupportedExportFormatException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
     }
 

@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,13 +34,16 @@ import com.blueforge.entity.ProjectVersionStatus;
 import com.blueforge.entity.RequirementType;
 import com.blueforge.entity.TaskEffort;
 import com.blueforge.entity.TaskPriority;
+import com.blueforge.service.ExportedMarkdown;
 import com.blueforge.service.InvalidAnswersException;
 import com.blueforge.service.InvalidProjectVersionStatusException;
 import com.blueforge.service.InvalidRegenerationTargetException;
+import com.blueforge.service.MarkdownExportService;
 import com.blueforge.service.ProjectNotFoundException;
 import com.blueforge.service.ProjectService;
 import com.blueforge.service.ProjectVersionNotFoundException;
 import com.blueforge.service.RegenerationNotAllowedException;
+import com.blueforge.service.UnsupportedExportFormatException;
 import com.blueforge.service.VersionDiffService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -64,6 +69,9 @@ class ProjectControllerTest {
 
     @MockitoBean
     private VersionDiffService versionDiffService;
+
+    @MockitoBean
+    private MarkdownExportService markdownExportService;
 
     @Test
     void createProjectReturnsOkWithBody() throws Exception {
@@ -515,5 +523,30 @@ class ProjectControllerTest {
         when(projectService.listVersions(eq(1L))).thenThrow(new ProjectNotFoundException(1L));
 
         mockMvc.perform(get("/api/projects/1/versions")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void exportVersionReturnsMarkdownWithDownloadHeaders() throws Exception {
+        when(markdownExportService.export(eq(1L), eq(1)))
+                .thenReturn(new ExportedMarkdown("test-project-v1.md", "# Test Project\n\n**Version:** 1\n\n"));
+
+        mockMvc.perform(get("/api/projects/1/versions/1/export"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"test-project-v1.md\""))
+                .andExpect(content().contentTypeCompatibleWith("text/markdown"))
+                .andExpect(content().string("# Test Project\n\n**Version:** 1\n\n"));
+    }
+
+    @Test
+    void exportVersionReturnsNotFoundWhenMissing() throws Exception {
+        when(markdownExportService.export(eq(1L), eq(1))).thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(get("/api/projects/1/versions/1/export")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void exportVersionReturnsBadRequestForUnsupportedFormat() throws Exception {
+        mockMvc.perform(get("/api/projects/1/versions/1/export").param("format", "json"))
+                .andExpect(status().isBadRequest());
     }
 }
