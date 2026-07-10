@@ -25,6 +25,7 @@ The project focuses on clean architecture, AI integration, and production-orient
 - Generate epics from requirements
 - Generate user stories with acceptance criteria
 - Generate engineering tasks with priority and effort estimates
+- Generate architecture recommendations — component, recommendation, reasoning, and trade-offs, naming a credible alternative that was considered and rejected
 - Version every planning stage
 
 ### Editing
@@ -35,19 +36,19 @@ The project focuses on clean architecture, AI integration, and production-orient
 
 ### Regeneration
 
-- Regenerate Requirements, Epics, User Stories, or Tasks for any stage a version has already reached
+- Regenerate Requirements, Epics, User Stories, Tasks, or Architecture Recommendations for any stage a version has already reached
 - Regeneration never overwrites existing data — it creates a new project version instead, leaving the original version and any manual edits in it untouched
 - Optional note describing why a stage was regenerated
 
 ### Version Diffing
 
 - Compare any two versions of the same project
-- See which Requirements, Epics, User Stories, and Tasks were added, removed, or modified, with a summary of counts by change type
+- See which Requirements, Epics, User Stories, Tasks, and Architecture Recommendations were added, removed, or modified, with a summary of counts by change type
 - Epics, User Stories, and Tasks are shown as a nested comparison so changes are readable in context, not just as flat lists
 
 ### Export
 
-- Export any version's full blueprint as a Markdown document — idea, clarifying Q&A, requirements grouped by type, and the Epic → User Story → Task roadmap
+- Export any version's full blueprint as a Markdown document — idea, clarifying Q&A, requirements grouped by type, the Epic → User Story → Task roadmap, and architecture recommendations
 - Sections for pipeline stages the version hasn't reached yet are simply omitted
 - Downloads directly from the workspace header via an "Export" button
 
@@ -197,6 +198,9 @@ User Stories
   │
   ▼
 Tasks
+  │
+  ▼
+Architecture Recommendations
 ```
 
 Each stage has its own endpoint, AI prompt, persistence model, and project version status.
@@ -275,6 +279,12 @@ POST /api/projects/{projectId}/versions/{versionNumber}/user-stories
 
 ```
 POST /api/projects/{projectId}/versions/{versionNumber}/tasks
+```
+
+### Generate Architecture Recommendations
+
+```
+POST /api/projects/{projectId}/versions/{versionNumber}/architecture-recommendations
 ```
 
 ### Edit Requirement

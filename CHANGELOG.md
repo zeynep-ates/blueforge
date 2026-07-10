@@ -2,6 +2,29 @@
 
 All notable changes to BlueForge are documented in this file.
 
+## [0.11.0] - 2026-07-10
+
+### Added
+
+- `POST /api/projects/{projectId}/versions/{versionNumber}/architecture-recommendations`
+  — the pipeline's final stage. One AI call, fed the idea, requirements, and
+  epics, returns a JSON array of `{component, recommendation, reasoning,
+  tradeoffs}` entries (e.g. Backend Framework, Database, Deployment), each
+  naming a credible alternative that was considered and rejected. Requires
+  `TASKS_GENERATED`; transitions the version to the new terminal
+  `ARCHITECTURE_GENERATED` status. New `ArchitectureRecommendation` entity
+  (flat, top-level, like `Requirement`) via `V10__architecture_recommendations.sql`
+  / `V11__architecture_recommendation_status.sql`.
+- "Architecture Recommendations" section in the workspace, following the
+  same generate/regenerate shape as every other stage. No edit endpoint for
+  this stage — scoped out deliberately, can be added later the same way it
+  was for the other four if it turns out to be needed.
+- Regenerating to this stage clones everything through Tasks (a new
+  `cloneTasksInto` helper — the only stage-clone step that didn't already
+  exist) and re-runs just the recommendations.
+- Added to version diffing (flat-list, like Requirements) and to the
+  Markdown export (`## Architecture Recommendations` section).
+
 ## [0.10.0] - 2026-07-10
 
 ### Added

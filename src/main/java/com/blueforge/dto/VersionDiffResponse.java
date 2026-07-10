@@ -8,4 +8,5 @@ public record VersionDiffResponse(
         int toVersionNumber,
         DiffSummary summary,
         List<RequirementDiffEntry> requirements,
-        List<EpicDiffEntry> epics) {}
+        List<EpicDiffEntry> epics,
+        List<ArchitectureRecommendationDiffEntry> architectureRecommendations) {}

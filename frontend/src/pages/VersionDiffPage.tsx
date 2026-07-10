@@ -1,7 +1,17 @@
-import { ArrowLeft, BookOpen, CheckSquare2, FileQuestion, GitCompare, Layers, ListChecks } from 'lucide-react'
+import {
+  ArrowLeft,
+  BookOpen,
+  Building2,
+  CheckSquare2,
+  FileQuestion,
+  GitCompare,
+  Layers,
+  ListChecks,
+} from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import {
   useGetVersionDiff,
+  type ArchitectureRecommendationDiffEntry,
   type EpicDiffEntry,
   type RequirementDiffEntry,
   type TaskDiffEntry,
@@ -70,6 +80,22 @@ function RequirementRow({ entry }: { entry: RequirementDiffEntry }) {
         <ChangeBadge changeType={entry.changeType as ChangeType} />
       </div>
       <DiffField label="" before={entry.before?.description} after={entry.after?.description} />
+    </li>
+  )
+}
+
+function ArchitectureRecommendationRow({ entry }: { entry: ArchitectureRecommendationDiffEntry }) {
+  const style = CHANGE_STYLES[(entry.changeType as ChangeType) ?? 'UNCHANGED']
+  return (
+    <li className={cn('flex flex-col gap-1 rounded-md border border-l-4 p-3', style.border)}>
+      <div className="flex items-center gap-2">
+        <Building2 className="text-primary size-4 shrink-0" />
+        <DiffField label="" before={entry.before?.component} after={entry.after?.component} />
+        <ChangeBadge changeType={entry.changeType as ChangeType} />
+      </div>
+      <DiffField label="" before={entry.before?.recommendation} after={entry.after?.recommendation} />
+      <DiffField label="Reasoning" before={entry.before?.reasoning} after={entry.after?.reasoning} />
+      <DiffField label="Trade-offs" before={entry.before?.tradeoffs} after={entry.after?.tradeoffs} />
     </li>
   )
 }
@@ -252,6 +278,26 @@ export function VersionDiffPage() {
                   <EpicBlock key={entry.after?.id ?? entry.before?.id ?? i} entry={entry} />
                 ))}
               </Accordion>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Building2 className="text-primary size-5" />
+              Architecture Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(diff.architectureRecommendations ?? []).length === 0 ? (
+              <p className="text-muted-foreground text-sm">No architecture recommendations in either version.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {(diff.architectureRecommendations ?? []).map((entry, i) => (
+                  <ArchitectureRecommendationRow key={entry.after?.id ?? entry.before?.id ?? i} entry={entry} />
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>

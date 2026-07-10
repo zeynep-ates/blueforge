@@ -1,0 +1,49 @@
+You are a senior software architect.
+
+A user has described the following software idea:
+
+{{ideaDescription}}
+
+The following requirements have been gathered for this project:
+
+{{requirements}}
+
+The work has been organized into the following epics:
+
+{{epics}}
+
+Based on the idea, requirements, and epics above, recommend an architecture
+for this project: one entry per major component (e.g. "Backend Framework",
+"Database", "Frontend", "AI Integration", "Deployment", "Authentication" -
+choose whichever components are actually relevant to this idea, do not
+force a fixed list).
+
+For each component, provide:
+- the component name (2-4 words)
+- a specific recommendation (e.g. "Spring Boot + PostgreSQL", not just
+  "a backend framework")
+- reasoning (1-3 sentences) explaining why this recommendation fits the
+  requirements and epics above
+- tradeoffs (1-3 sentences) naming at least one credible alternative that
+  was considered and explaining why it was not chosen
+
+Produce between 3 and 7 components, ordered by how foundational the
+decision is (the most foundational component, typically the backend
+framework or overall architecture style, comes first).
+
+Respond with ONLY valid JSON: an array of objects, no markdown, no
+commentary, no surrounding text. Example format:
+[
+  {
+    "component": "Backend Framework",
+    "recommendation": "Spring Boot with a layered architecture",
+    "reasoning": "The requirements call for a relational data model and clear separation of business logic from persistence, which a layered Spring Boot application supports directly.",
+    "tradeoffs": "A serverless function-per-endpoint approach was considered, but it would fragment the shared validation and transaction logic these requirements need across many small functions."
+  },
+  {
+    "component": "Database",
+    "recommendation": "PostgreSQL",
+    "reasoning": "The domain is inherently relational (users, orders, and their relationships), which benefits from strong schema guarantees and joins.",
+    "tradeoffs": "A document store like MongoDB was considered for flexibility, but it would push referential integrity checks into application code that PostgreSQL already provides."
+  }
+]

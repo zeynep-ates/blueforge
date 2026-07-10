@@ -96,6 +96,12 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.generateTasks(projectId, versionNumber));
     }
 
+    @PostMapping("/{projectId}/versions/{versionNumber}/architecture-recommendations")
+    public ResponseEntity<ProjectVersionResponse> generateArchitectureRecommendations(
+            @PathVariable Long projectId, @PathVariable int versionNumber) {
+        return ResponseEntity.ok(projectService.generateArchitectureRecommendations(projectId, versionNumber));
+    }
+
     @PostMapping("/{projectId}/versions/{versionNumber}/regenerate")
     public ResponseEntity<ProjectVersionResponse> regenerateVersion(
             @PathVariable Long projectId,

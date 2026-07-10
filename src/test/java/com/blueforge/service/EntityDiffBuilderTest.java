@@ -2,10 +2,12 @@ package com.blueforge.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.blueforge.dto.ArchitectureRecommendationDiffEntry;
 import com.blueforge.dto.EpicDiffEntry;
 import com.blueforge.dto.RequirementDiffEntry;
 import com.blueforge.dto.TaskDiffEntry;
 import com.blueforge.dto.UserStoryDiffEntry;
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ChangeType;
 import com.blueforge.entity.Epic;
 import com.blueforge.entity.Project;
@@ -152,6 +154,38 @@ class EntityDiffBuilderTest {
         after.setId(501L);
 
         TaskDiffEntry entry = diffBuilder.buildTaskDiff(new MatchedPair<>(before, after));
+
+        assertThat(entry.changeType()).isEqualTo(ChangeType.UNCHANGED);
+    }
+
+    @Test
+    void classifiesArchitectureRecommendationAsModifiedWhenTradeoffsDiffer() {
+        ProjectVersion version = version();
+        ArchitectureRecommendation before = new ArchitectureRecommendation(
+                version, "Database", "PostgreSQL", "Relational domain.", "MongoDB was considered.", 0);
+        before.setId(600L);
+        ArchitectureRecommendation after = new ArchitectureRecommendation(
+                version, "Database", "PostgreSQL", "Relational domain.", "DynamoDB was considered.", 0);
+        after.setId(601L);
+
+        ArchitectureRecommendationDiffEntry entry =
+                diffBuilder.buildArchitectureRecommendationDiff(new MatchedPair<>(before, after));
+
+        assertThat(entry.changeType()).isEqualTo(ChangeType.MODIFIED);
+    }
+
+    @Test
+    void architectureRecommendationUnchangedWhenAllComparedFieldsMatch() {
+        ProjectVersion version = version();
+        ArchitectureRecommendation before = new ArchitectureRecommendation(
+                version, "Database", "PostgreSQL", "Relational domain.", "MongoDB was considered.", 0);
+        before.setId(600L);
+        ArchitectureRecommendation after = new ArchitectureRecommendation(
+                version, "Database", "PostgreSQL", "Relational domain.", "MongoDB was considered.", 0);
+        after.setId(601L);
+
+        ArchitectureRecommendationDiffEntry entry =
+                diffBuilder.buildArchitectureRecommendationDiff(new MatchedPair<>(before, after));
 
         assertThat(entry.changeType()).isEqualTo(ChangeType.UNCHANGED);
     }

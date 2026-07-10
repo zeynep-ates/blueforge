@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
@@ -138,6 +139,36 @@ class MarkdownExportServiceTest {
         ExportedMarkdown export = markdownExportService.export(1L, 1);
 
         assertThat(export.filename()).isEqualTo("my-project-v2-0-v1.md");
+    }
+
+    @Test
+    void exportsArchitectureRecommendations() {
+        Project project = project("Test Project");
+        ProjectVersion version =
+                new ProjectVersion(project, 3, "An idea", ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        version.setId(12L);
+
+        ArchitectureRecommendation recommendation = new ArchitectureRecommendation(
+                version,
+                "Database",
+                "PostgreSQL",
+                "The domain is relational.",
+                "MongoDB was considered but rejected.",
+                0);
+        recommendation.setId(600L);
+        version.getArchitectureRecommendations().add(recommendation);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 3)).thenReturn(Optional.of(version));
+
+        ExportedMarkdown export = markdownExportService.export(1L, 3);
+
+        assertThat(export.content())
+                .contains(
+                        "## Architecture Recommendations",
+                        "### Database",
+                        "**Recommendation:** PostgreSQL",
+                        "**Reasoning:** The domain is relational.",
+                        "**Trade-offs:** MongoDB was considered but rejected.");
     }
 
     @Test

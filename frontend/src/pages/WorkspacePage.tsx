@@ -5,6 +5,7 @@ import { API_BASE_URL } from '@/api/mutator'
 import { getGetProjectVersionQueryKey, useGetProjectVersion } from '@/api/generated'
 import type { ProjectVersionResponse } from '@/api/generated'
 import { WorkspaceSidebar } from '@/components/layout/WorkspaceSidebar'
+import { ArchitectureRecommendationsSection } from '@/components/pipeline/ArchitectureRecommendationsSection'
 import { EpicsSection } from '@/components/pipeline/EpicsSection'
 import { QuestionsSection } from '@/components/pipeline/QuestionsSection'
 import { RequirementsSection } from '@/components/pipeline/RequirementsSection'
@@ -102,6 +103,7 @@ export function WorkspacePage() {
           <EpicsSection version={version} onUpdated={handleUpdated} />
           <UserStoriesSection version={version} onUpdated={handleUpdated} />
           <TasksSection version={version} onUpdated={handleUpdated} />
+          <ArchitectureRecommendationsSection version={version} onUpdated={handleUpdated} />
         </div>
       </SidebarInset>
     </SidebarProvider>

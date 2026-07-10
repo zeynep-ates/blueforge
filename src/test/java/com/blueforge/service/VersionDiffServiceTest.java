@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import com.blueforge.dto.ArchitectureRecommendationDiffEntry;
 import com.blueforge.dto.DiffSummary;
 import com.blueforge.dto.EpicDiffEntry;
 import com.blueforge.dto.RequirementDiffEntry;
 import com.blueforge.dto.TaskDiffEntry;
 import com.blueforge.dto.UserStoryDiffEntry;
 import com.blueforge.dto.VersionDiffResponse;
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ChangeType;
 import com.blueforge.entity.Epic;
 import com.blueforge.entity.Project;
@@ -213,5 +215,35 @@ class VersionDiffServiceTest {
         RequirementDiffEntry entry = response.requirements().get(0);
         assertThat(entry.changeType()).isEqualTo(ChangeType.REMOVED);
         assertThat(entry.before().orderIndex()).isEqualTo(0);
+    }
+
+    @Test
+    void diffsArchitectureRecommendationsAtTopLevelAndIncludesThemInSummary() {
+        Project project = project();
+        ProjectVersion from = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        from.setId(10L);
+        ArchitectureRecommendation a1 =
+                new ArchitectureRecommendation(from, "Database", "PostgreSQL", "Relational domain.", "MongoDB considered.", 0);
+        a1.setId(600L);
+        from.getArchitectureRecommendations().add(a1);
+
+        ProjectVersion to = new ProjectVersion(project, 2, "An idea", ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        to.setId(11L);
+        ArchitectureRecommendation a2 = new ArchitectureRecommendation(
+                to, "Database", "PostgreSQL", "Relational domain.", "DynamoDB considered.", 0);
+        a2.setId(601L);
+        to.getArchitectureRecommendations().add(a2);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(from));
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 2)).thenReturn(Optional.of(to));
+
+        VersionDiffResponse response = versionDiffService.diff(1L, 1, 2);
+
+        assertThat(response.architectureRecommendations()).hasSize(1);
+        ArchitectureRecommendationDiffEntry entry = response.architectureRecommendations().get(0);
+        assertThat(entry.changeType()).isEqualTo(ChangeType.MODIFIED);
+        assertThat(entry.before().tradeoffs()).isEqualTo("MongoDB considered.");
+        assertThat(entry.after().tradeoffs()).isEqualTo("DynamoDB considered.");
+        assertThat(response.summary()).isEqualTo(new DiffSummary(0, 0, 1, 0));
     }
 }

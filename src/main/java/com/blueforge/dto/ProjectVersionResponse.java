@@ -14,4 +14,5 @@ public record ProjectVersionResponse(
         List<RequirementResponse> requirements,
         List<EpicResponse> epics,
         List<UserStoryResponse> userStories,
-        List<TaskResponse> tasks) {}
+        List<TaskResponse> tasks,
+        List<ArchitectureRecommendationResponse> architectureRecommendations) {}

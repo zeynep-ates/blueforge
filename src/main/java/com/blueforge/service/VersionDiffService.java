@@ -1,5 +1,6 @@
 package com.blueforge.service;
 
+import com.blueforge.dto.ArchitectureRecommendationDiffEntry;
 import com.blueforge.dto.DiffSummary;
 import com.blueforge.dto.EpicDiffEntry;
 import com.blueforge.dto.RequirementDiffEntry;
@@ -46,8 +47,20 @@ public class VersionDiffService {
                 .map(this::buildEpicDiff)
                 .toList();
 
+        List<ArchitectureRecommendationDiffEntry> architectureRecommendations = matcher
+                .match(from.getArchitectureRecommendations(), to.getArchitectureRecommendations())
+                .stream()
+                .map(diffBuilder::buildArchitectureRecommendationDiff)
+                .toList();
+
         return new VersionDiffResponse(
-                projectId, fromVersionNumber, toVersionNumber, summarize(requirements, epics), requirements, epics);
+                projectId,
+                fromVersionNumber,
+                toVersionNumber,
+                summarize(requirements, epics, architectureRecommendations),
+                requirements,
+                epics,
+                architectureRecommendations);
     }
 
     private EpicDiffEntry buildEpicDiff(MatchedPair<Epic> pair) {
@@ -74,13 +87,16 @@ public class VersionDiffService {
                 .orElseThrow(() -> new ProjectVersionNotFoundException(projectId, versionNumber));
     }
 
-    private static DiffSummary summarize(List<RequirementDiffEntry> requirements, List<EpicDiffEntry> epics) {
+    private static DiffSummary summarize(
+            List<RequirementDiffEntry> requirements,
+            List<EpicDiffEntry> epics,
+            List<ArchitectureRecommendationDiffEntry> architectureRecommendations) {
         int added = 0;
         int removed = 0;
         int modified = 0;
         int unchanged = 0;
 
-        for (ChangeType type : allChangeTypes(requirements, epics).toList()) {
+        for (ChangeType type : allChangeTypes(requirements, epics, architectureRecommendations).toList()) {
             switch (type) {
                 case ADDED -> added++;
                 case REMOVED -> removed++;
@@ -92,10 +108,15 @@ public class VersionDiffService {
         return new DiffSummary(added, removed, modified, unchanged);
     }
 
-    private static Stream<ChangeType> allChangeTypes(List<RequirementDiffEntry> requirements, List<EpicDiffEntry> epics) {
+    private static Stream<ChangeType> allChangeTypes(
+            List<RequirementDiffEntry> requirements,
+            List<EpicDiffEntry> epics,
+            List<ArchitectureRecommendationDiffEntry> architectureRecommendations) {
         return Stream.concat(
-                requirements.stream().map(RequirementDiffEntry::changeType),
-                epics.stream().flatMap(VersionDiffService::epicChangeTypes));
+                Stream.concat(
+                        requirements.stream().map(RequirementDiffEntry::changeType),
+                        epics.stream().flatMap(VersionDiffService::epicChangeTypes)),
+                architectureRecommendations.stream().map(ArchitectureRecommendationDiffEntry::changeType));
     }
 
     private static Stream<ChangeType> epicChangeTypes(EpicDiffEntry epic) {

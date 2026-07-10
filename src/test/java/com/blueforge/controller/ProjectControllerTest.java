@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.blueforge.ai.AiClientException;
 import com.blueforge.dto.AnswerRequest;
+import com.blueforge.dto.ArchitectureRecommendationResponse;
 import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
@@ -124,6 +125,7 @@ class ProjectControllerTest {
                         List.of(),
                         List.of(),
                         List.of(),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(get("/api/projects/1/versions/1"))
@@ -155,6 +157,7 @@ class ProjectControllerTest {
                                 100L, "What is the primary user type?", 0, "End consumers")),
                         List.of(new RequirementResponse(
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
+                        List.of(),
                         List.of(),
                         List.of(),
                         List.of()));
@@ -217,6 +220,7 @@ class ProjectControllerTest {
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
                         List.of(new EpicResponse(300L, "User onboarding", "Covers account creation.", 0)),
                         List.of(),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/epics"))
@@ -268,6 +272,7 @@ class ProjectControllerTest {
                                 "As a new user, I want to sign up with my email.",
                                 "- User can register with email and password",
                                 0)),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/user-stories"))
@@ -320,7 +325,8 @@ class ProjectControllerTest {
                                 "Implement the registration endpoint.",
                                 TaskPriority.HIGH,
                                 TaskEffort.M,
-                                0))));
+                                0)),
+                        List.of()));
 
         mockMvc.perform(post("/api/projects/1/versions/1/tasks"))
                 .andExpect(status().isOk())
@@ -352,6 +358,58 @@ class ProjectControllerTest {
     }
 
     @Test
+    void generateArchitectureRecommendationsReturnsOkWithBody() throws Exception {
+        when(projectService.generateArchitectureRecommendations(eq(1L), eq(1)))
+                .thenReturn(new ProjectVersionResponse(
+                        10L,
+                        1L,
+                        1,
+                        "An idea",
+                        null,
+                        ProjectVersionStatus.ARCHITECTURE_GENERATED,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(new ArchitectureRecommendationResponse(
+                                600L, "Backend Framework", "Spring Boot", "Fits the requirements.", "Alternative rejected.", 0))));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/architecture-recommendations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ARCHITECTURE_GENERATED")))
+                .andExpect(jsonPath("$.architectureRecommendations[0].component", is("Backend Framework")));
+    }
+
+    @Test
+    void generateArchitectureRecommendationsReturnsNotFoundWhenMissing() throws Exception {
+        when(projectService.generateArchitectureRecommendations(eq(1L), eq(1)))
+                .thenThrow(new ProjectVersionNotFoundException(1L, 1));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/architecture-recommendations"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void generateArchitectureRecommendationsReturnsConflictWhenTasksNotYetGenerated() throws Exception {
+        when(projectService.generateArchitectureRecommendations(eq(1L), eq(1)))
+                .thenThrow(new InvalidProjectVersionStatusException(
+                        1L, 1, ProjectVersionStatus.TASKS_GENERATED, ProjectVersionStatus.USER_STORIES_GENERATED));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/architecture-recommendations"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void generateArchitectureRecommendationsReturnsBadGatewayWhenAiClientFails() throws Exception {
+        when(projectService.generateArchitectureRecommendations(eq(1L), eq(1)))
+                .thenThrow(new AiClientException("boom"));
+
+        mockMvc.perform(post("/api/projects/1/versions/1/architecture-recommendations"))
+                .andExpect(status().isBadGateway());
+    }
+
+    @Test
     void regenerateVersionReturnsOkWithBody() throws Exception {
         when(projectService.regenerateVersion(eq(1L), eq(1), any()))
                 .thenReturn(new ProjectVersionResponse(
@@ -365,6 +423,7 @@ class ProjectControllerTest {
                         List.of(new RequirementResponse(
                                 200L, RequirementType.FUNCTIONAL, "User registration", "Users can sign up.", 0)),
                         List.of(new EpicResponse(301L, "Different onboarding", "A fresh take.", 0)),
+                        List.of(),
                         List.of(),
                         List.of()));
 
@@ -444,6 +503,7 @@ class ProjectControllerTest {
                                         null,
                                         new RequirementResponse(
                                                 301L, RequirementType.FUNCTIONAL, "New req", "Description", 1))),
+                        List.of(),
                         List.of()));
 
         mockMvc.perform(get("/api/projects/1/versions/1/diff/2"))

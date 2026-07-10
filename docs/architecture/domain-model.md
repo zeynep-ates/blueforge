@@ -1,8 +1,7 @@
 # Domain Model
 
-Current state as of v0.10.0. See [`blueforge-project-plan.md`](../../blueforge-project-plan.md#6-data-model)
-for the original target schema — `ArchitectureRecommendation` is the one piece
-of that plan not yet built.
+Current state as of v0.11.0. See [`blueforge-project-plan.md`](../../blueforge-project-plan.md#6-data-model)
+for the original target schema — every entity in it now exists.
 
 ```
 Project
@@ -12,10 +11,11 @@ Project
 ProjectVersion
  ├─ id, project_id, versionNumber, ideaSnapshot, changeDescription (nullable, v2+)
  ├─ status (AWAITING_ANSWERS | REQUIREMENTS_GENERATED | EPICS_GENERATED |
- │          USER_STORIES_GENERATED | TASKS_GENERATED)
+ │          USER_STORIES_GENERATED | TASKS_GENERATED | ARCHITECTURE_GENERATED)
  ├─ clarifyingQuestions: List<ClarifyingQuestion>
  ├─ requirements: List<Requirement>
- └─ epics: List<Epic>
+ ├─ epics: List<Epic>
+ └─ architectureRecommendations: List<ArchitectureRecommendation>
 
 ClarifyingQuestion
  ├─ id, projectVersion_id, questionText, orderIndex
@@ -41,6 +41,11 @@ Task
  ├─ priority (HIGH | MEDIUM | LOW)
  ├─ effortEstimate (S | M | L)
  └─ orderIndex
+
+ArchitectureRecommendation
+ ├─ id, projectVersion_id, component
+ ├─ recommendation, reasoning, tradeoffs
+ └─ orderIndex
 ```
 
 - `Project 1—* ProjectVersion` — a project accumulates versions over time.
@@ -50,9 +55,12 @@ Task
   existing version's rows once created.
 - Every parent-child relation (`ProjectVersion → ClarifyingQuestion`,
   `ProjectVersion → Requirement`, `ProjectVersion → Epic`, `Epic → UserStory`,
-  `UserStory → Task`, `ClarifyingQuestion → ClarifyingAnswer`) is cascaded
-  with orphan removal — children have no lifecycle independent of their
-  parent.
+  `UserStory → Task`, `ProjectVersion → ArchitectureRecommendation`,
+  `ClarifyingQuestion → ClarifyingAnswer`) is cascaded with orphan removal —
+  children have no lifecycle independent of their parent. Like `Requirement`,
+  `ArchitectureRecommendation` is a flat, top-level child of `ProjectVersion`
+  (not nested under Epic/UserStory/Task) — it describes the version as a
+  whole, not any one piece of the roadmap.
 - `orderIndex` on every child entity is what "flat DTO lists reconstructed
   into a hierarchy" (Markdown export, version diffing) and "positional
   matching across versions" (`PositionalEntityMatcher`) both rely on —
@@ -62,8 +70,6 @@ Task
   `VersionEntityMatcher` / `PositionalEntityMatcher`), not stored per-row.
   This diverges from the original plan's per-item `changeType` field — see
   the `[0.9.0]` entry in `CHANGELOG.md` for the reasoning.
-- `ArchitectureRecommendation` (recommendation / reasoning / trade-offs per
-  version) from the original plan does not exist yet.
 
 Schema source of truth: [`src/main/resources/db/migration/`](../../src/main/resources/db/migration/).
 Entities: [`src/main/java/com/blueforge/entity/`](../../src/main/java/com/blueforge/entity/).

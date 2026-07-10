@@ -44,6 +44,15 @@ export interface CreateProjectResponse {
   questions?: ClarifyingQuestionResponse[];
 }
 
+export interface ArchitectureRecommendationResponse {
+  id?: number;
+  component?: string;
+  recommendation?: string;
+  reasoning?: string;
+  tradeoffs?: string;
+  orderIndex?: number;
+}
+
 export interface EpicResponse {
   id?: number;
   title?: string;
@@ -61,6 +70,7 @@ export const ProjectVersionResponseStatus = {
   EPICS_GENERATED: 'EPICS_GENERATED',
   USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
   TASKS_GENERATED: 'TASKS_GENERATED',
+  ARCHITECTURE_GENERATED: 'ARCHITECTURE_GENERATED',
 } as const;
 
 export interface ProjectVersionResponse {
@@ -75,6 +85,7 @@ export interface ProjectVersionResponse {
   epics?: EpicResponse[];
   userStories?: UserStoryResponse[];
   tasks?: TaskResponse[];
+  architectureRecommendations?: ArchitectureRecommendationResponse[];
 }
 
 export type RequirementResponseType = typeof RequirementResponseType[keyof typeof RequirementResponseType];
@@ -145,6 +156,7 @@ export const RegenerateVersionRequestTargetStage = {
   EPICS_GENERATED: 'EPICS_GENERATED',
   USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
   TASKS_GENERATED: 'TASKS_GENERATED',
+  ARCHITECTURE_GENERATED: 'ARCHITECTURE_GENERATED',
 } as const;
 
 export interface RegenerateVersionRequest {
@@ -203,6 +215,7 @@ export const ProjectSummaryResponseLatestStatus = {
   EPICS_GENERATED: 'EPICS_GENERATED',
   USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
   TASKS_GENERATED: 'TASKS_GENERATED',
+  ARCHITECTURE_GENERATED: 'ARCHITECTURE_GENERATED',
 } as const;
 
 export interface ProjectSummaryResponse {
@@ -230,6 +243,7 @@ export const ProjectVersionSummaryResponseStatus = {
   EPICS_GENERATED: 'EPICS_GENERATED',
   USER_STORIES_GENERATED: 'USER_STORIES_GENERATED',
   TASKS_GENERATED: 'TASKS_GENERATED',
+  ARCHITECTURE_GENERATED: 'ARCHITECTURE_GENERATED',
 } as const;
 
 export interface ProjectVersionSummaryResponse {
@@ -237,6 +251,23 @@ export interface ProjectVersionSummaryResponse {
   versionNumber?: number;
   status?: ProjectVersionSummaryResponseStatus;
   changeDescription?: string;
+}
+
+export type ArchitectureRecommendationDiffEntryChangeType = typeof ArchitectureRecommendationDiffEntryChangeType[keyof typeof ArchitectureRecommendationDiffEntryChangeType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ArchitectureRecommendationDiffEntryChangeType = {
+  ADDED: 'ADDED',
+  REMOVED: 'REMOVED',
+  MODIFIED: 'MODIFIED',
+  UNCHANGED: 'UNCHANGED',
+} as const;
+
+export interface ArchitectureRecommendationDiffEntry {
+  changeType?: ArchitectureRecommendationDiffEntryChangeType;
+  before?: ArchitectureRecommendationResponse;
+  after?: ArchitectureRecommendationResponse;
 }
 
 export interface DiffSummary {
@@ -323,7 +354,12 @@ export interface VersionDiffResponse {
   summary?: DiffSummary;
   requirements?: RequirementDiffEntry[];
   epics?: EpicDiffEntry[];
+  architectureRecommendations?: ArchitectureRecommendationDiffEntry[];
 }
+
+export type ExportVersionParams = {
+format?: string;
+};
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
@@ -755,6 +791,73 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
 
       const mutationOptions = getGenerateEpicsMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+export const getGenerateArchitectureRecommendationsUrl = (projectId: number,
+    versionNumber: number,) => {
+
+
+  
+
+  return `/api/projects/${projectId}/versions/${versionNumber}/architecture-recommendations`
+}
+
+export const generateArchitectureRecommendations = async (projectId: number,
+    versionNumber: number, options?: RequestInit): Promise<ProjectVersionResponse> => {
+  
+  return apiFetch<ProjectVersionResponse>(getGenerateArchitectureRecommendationsUrl(projectId,versionNumber),
+  {      
+    ...options,
+    method: 'POST'
+    
+    
+  }
+);}
+
+
+
+
+export const getGenerateArchitectureRecommendationsMutationOptions = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateArchitectureRecommendations>>, TError,{projectId: number;versionNumber: number}, TContext>, request?: SecondParameter<typeof apiFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateArchitectureRecommendations>>, TError,{projectId: number;versionNumber: number}, TContext> => {
+
+const mutationKey = ['generateArchitectureRecommendations'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateArchitectureRecommendations>>, {projectId: number;versionNumber: number}> = (props) => {
+          const {projectId,versionNumber} = props ?? {};
+
+          return  generateArchitectureRecommendations(projectId,versionNumber,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateArchitectureRecommendationsMutationResult = NonNullable<Awaited<ReturnType<typeof generateArchitectureRecommendations>>>
+    
+    export type GenerateArchitectureRecommendationsMutationError = unknown
+
+    export const useGenerateArchitectureRecommendations = <TError = unknown,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateArchitectureRecommendations>>, TError,{projectId: number;versionNumber: number}, TContext>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof generateArchitectureRecommendations>>,
+        TError,
+        {projectId: number;versionNumber: number},
+        TContext
+      > => {
+
+      const mutationOptions = getGenerateArchitectureRecommendationsMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }
@@ -1375,6 +1478,123 @@ export function useGetProjectVersion<TData = Awaited<ReturnType<typeof getProjec
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getGetProjectVersionQueryOptions(projectId,versionNumber,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getExportVersionUrl = (projectId: number,
+    versionNumber: number,
+    params?: ExportVersionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/projects/${projectId}/versions/${versionNumber}/export?${stringifiedParams}` : `/api/projects/${projectId}/versions/${versionNumber}/export`
+}
+
+export const exportVersion = async (projectId: number,
+    versionNumber: number,
+    params?: ExportVersionParams, options?: RequestInit): Promise<string> => {
+  
+  return apiFetch<string>(getExportVersionUrl(projectId,versionNumber,params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
+
+export const getExportVersionQueryKey = (projectId?: number,
+    versionNumber?: number,
+    params?: ExportVersionParams,) => {
+    return [
+    `/api/projects/${projectId}/versions/${versionNumber}/export`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getExportVersionQueryOptions = <TData = Awaited<ReturnType<typeof exportVersion>>, TError = unknown>(projectId: number,
+    versionNumber: number,
+    params?: ExportVersionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportVersion>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportVersionQueryKey(projectId,versionNumber,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportVersion>>> = ({ signal }) => exportVersion(projectId,versionNumber,params, { signal, ...requestOptions });
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(projectId && versionNumber), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportVersion>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportVersionQueryResult = NonNullable<Awaited<ReturnType<typeof exportVersion>>>
+export type ExportVersionQueryError = unknown
+
+
+export function useExportVersion<TData = Awaited<ReturnType<typeof exportVersion>>, TError = unknown>(
+ projectId: number,
+    versionNumber: number,
+    params: undefined |  ExportVersionParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportVersion>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportVersion>>,
+          TError,
+          Awaited<ReturnType<typeof exportVersion>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportVersion<TData = Awaited<ReturnType<typeof exportVersion>>, TError = unknown>(
+ projectId: number,
+    versionNumber: number,
+    params?: ExportVersionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportVersion>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportVersion>>,
+          TError,
+          Awaited<ReturnType<typeof exportVersion>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportVersion<TData = Awaited<ReturnType<typeof exportVersion>>, TError = unknown>(
+ projectId: number,
+    versionNumber: number,
+    params?: ExportVersionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportVersion>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportVersion<TData = Awaited<ReturnType<typeof exportVersion>>, TError = unknown>(
+ projectId: number,
+    versionNumber: number,
+    params?: ExportVersionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportVersion>>, TError, TData>>, request?: SecondParameter<typeof apiFetch>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportVersionQueryOptions(projectId,versionNumber,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

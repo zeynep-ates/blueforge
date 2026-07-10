@@ -1,5 +1,6 @@
 package com.blueforge.service;
 
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
@@ -57,6 +58,7 @@ public class MarkdownExportService {
         renderClarifyingQuestions(md, version.getClarifyingQuestions());
         renderRequirements(md, version.getRequirements());
         renderRoadmap(md, version.getEpics());
+        renderArchitectureRecommendations(md, version.getArchitectureRecommendations());
 
         return md.toString();
     }
@@ -132,6 +134,22 @@ public class MarkdownExportService {
                     md.append("\n");
                 }
             }
+        }
+    }
+
+    private void renderArchitectureRecommendations(StringBuilder md, List<ArchitectureRecommendation> recommendations) {
+        if (recommendations.isEmpty()) {
+            return;
+        }
+
+        md.append("## Architecture Recommendations\n\n");
+        for (ArchitectureRecommendation recommendation : recommendations) {
+            md.append("### ").append(recommendation.getComponent()).append("\n\n");
+            md.append("**Recommendation:** ")
+                    .append(recommendation.getRecommendation())
+                    .append("\n\n");
+            md.append("**Reasoning:** ").append(recommendation.getReasoning()).append("\n\n");
+            md.append("**Trade-offs:** ").append(recommendation.getTradeoffs()).append("\n\n");
         }
     }
 

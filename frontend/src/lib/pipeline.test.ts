@@ -34,13 +34,20 @@ describe('stageState', () => {
     expect(stageState('tasks', status)).toBe('current')
   })
 
-  it('marks every stage done once tasks are generated', () => {
+  it('unlocks architecture once tasks are generated', () => {
     const status = ProjectVersionResponseStatus.TASKS_GENERATED
     expect(stageState('questions', status)).toBe('done')
     expect(stageState('requirements', status)).toBe('done')
     expect(stageState('epics', status)).toBe('done')
     expect(stageState('userStories', status)).toBe('done')
     expect(stageState('tasks', status)).toBe('done')
+    expect(stageState('architecture', status)).toBe('current')
+  })
+
+  it('marks every stage done once architecture recommendations are generated', () => {
+    const status = ProjectVersionResponseStatus.ARCHITECTURE_GENERATED
+    expect(stageState('tasks', status)).toBe('done')
+    expect(stageState('architecture', status)).toBe('done')
   })
 
   it('treats an undefined status the same as awaiting answers', () => {
@@ -55,9 +62,10 @@ describe('currentStage', () => {
     expect(currentStage(ProjectVersionResponseStatus.REQUIREMENTS_GENERATED)).toBe('epics')
     expect(currentStage(ProjectVersionResponseStatus.EPICS_GENERATED)).toBe('userStories')
     expect(currentStage(ProjectVersionResponseStatus.USER_STORIES_GENERATED)).toBe('tasks')
+    expect(currentStage(ProjectVersionResponseStatus.TASKS_GENERATED)).toBe('architecture')
   })
 
-  it('falls back to tasks once the pipeline is fully generated', () => {
-    expect(currentStage(ProjectVersionResponseStatus.TASKS_GENERATED)).toBe('tasks')
+  it('falls back to architecture once the pipeline is fully generated', () => {
+    expect(currentStage(ProjectVersionResponseStatus.ARCHITECTURE_GENERATED)).toBe('architecture')
   })
 })

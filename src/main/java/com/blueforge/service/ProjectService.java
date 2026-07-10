@@ -2,6 +2,7 @@ package com.blueforge.service;
 
 import com.blueforge.ai.AiClient;
 import com.blueforge.dto.AnswerRequest;
+import com.blueforge.dto.ArchitectureRecommendationResponse;
 import com.blueforge.dto.ClarifyingQuestionResponse;
 import com.blueforge.dto.CreateProjectRequest;
 import com.blueforge.dto.CreateProjectResponse;
@@ -15,6 +16,7 @@ import com.blueforge.dto.RequirementResponse;
 import com.blueforge.dto.SubmitAnswersRequest;
 import com.blueforge.dto.TaskResponse;
 import com.blueforge.dto.UserStoryResponse;
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
@@ -58,12 +60,14 @@ public class ProjectService {
     private final String epicsPromptTemplate;
     private final String userStoriesPromptTemplate;
     private final String tasksPromptTemplate;
+    private final String architectureRecommendationsPromptTemplate;
 
     private static final List<ProjectVersionStatus> REGENERABLE_STAGES = List.of(
             ProjectVersionStatus.REQUIREMENTS_GENERATED,
             ProjectVersionStatus.EPICS_GENERATED,
             ProjectVersionStatus.USER_STORIES_GENERATED,
-            ProjectVersionStatus.TASKS_GENERATED);
+            ProjectVersionStatus.TASKS_GENERATED,
+            ProjectVersionStatus.ARCHITECTURE_GENERATED);
 
     public ProjectService(
             ProjectRepository projectRepository,
@@ -79,6 +83,8 @@ public class ProjectService {
         this.epicsPromptTemplate = loadPromptTemplate("prompts/epics.txt");
         this.userStoriesPromptTemplate = loadPromptTemplate("prompts/user-stories.txt");
         this.tasksPromptTemplate = loadPromptTemplate("prompts/tasks.txt");
+        this.architectureRecommendationsPromptTemplate =
+                loadPromptTemplate("prompts/architecture-recommendations.txt");
     }
 
     @Transactional
@@ -201,6 +207,22 @@ public class ProjectService {
         return toProjectVersionResponse(projectId, version);
     }
 
+    @Transactional
+    public ProjectVersionResponse generateArchitectureRecommendations(Long projectId, int versionNumber) {
+        ProjectVersion version = findVersionOrThrow(projectId, versionNumber);
+
+        if (version.getStatus() != ProjectVersionStatus.TASKS_GENERATED) {
+            throw new InvalidProjectVersionStatusException(
+                    projectId, versionNumber, ProjectVersionStatus.TASKS_GENERATED, version.getStatus());
+        }
+
+        applyArchitectureRecommendationsGeneration(version);
+
+        version = projectVersionRepository.save(version);
+
+        return toProjectVersionResponse(projectId, version);
+    }
+
     private ProjectVersion findVersionOrThrow(Long projectId, int versionNumber) {
         return projectVersionRepository
                 .findByProjectIdAndVersionNumber(projectId, versionNumber)
@@ -299,6 +321,28 @@ public class ProjectService {
         version.setStatus(ProjectVersionStatus.TASKS_GENERATED);
     }
 
+    private void applyArchitectureRecommendationsGeneration(ProjectVersion version) {
+        if (version.getEpics().isEmpty()) {
+            throw new IllegalStateException("Version " + version.getVersionNumber() + " of project "
+                    + version.getProject().getId() + " reached " + ProjectVersionStatus.TASKS_GENERATED
+                    + " with no epics");
+        }
+
+        List<GeneratedArchitectureRecommendation> generated = requestArchitectureRecommendationsFromAi(version);
+        for (int i = 0; i < generated.size(); i++) {
+            GeneratedArchitectureRecommendation recommendation = generated.get(i);
+            version.getArchitectureRecommendations()
+                    .add(new ArchitectureRecommendation(
+                            version,
+                            recommendation.component(),
+                            recommendation.recommendation(),
+                            recommendation.reasoning(),
+                            recommendation.tradeoffs(),
+                            i));
+        }
+        version.setStatus(ProjectVersionStatus.ARCHITECTURE_GENERATED);
+    }
+
     @Transactional
     public ProjectVersionResponse regenerateVersion(
             Long projectId, int baseVersionNumber, RegenerateVersionRequest request) {
@@ -327,12 +371,16 @@ public class ProjectService {
         if (targetStage.ordinal() >= ProjectVersionStatus.TASKS_GENERATED.ordinal()) {
             cloneUserStoriesInto(base, clone);
         }
+        if (targetStage.ordinal() >= ProjectVersionStatus.ARCHITECTURE_GENERATED.ordinal()) {
+            cloneTasksInto(base, clone);
+        }
 
         switch (targetStage) {
             case REQUIREMENTS_GENERATED -> applyRequirementsGeneration(clone);
             case EPICS_GENERATED -> applyEpicsGeneration(clone);
             case USER_STORIES_GENERATED -> applyUserStoriesGeneration(clone);
             case TASKS_GENERATED -> applyTasksGeneration(clone);
+            case ARCHITECTURE_GENERATED -> applyArchitectureRecommendationsGeneration(clone);
             default -> throw new InvalidRegenerationTargetException(targetStage);
         }
 
@@ -397,6 +445,29 @@ public class ProjectService {
         }
     }
 
+    // Requires cloneUserStoriesInto to have already populated target's user stories in the same order as base's.
+    private static void cloneTasksInto(ProjectVersion base, ProjectVersion target) {
+        List<Epic> baseEpics = base.getEpics();
+        List<Epic> targetEpics = target.getEpics();
+        for (int i = 0; i < baseEpics.size(); i++) {
+            List<UserStory> baseStories = baseEpics.get(i).getUserStories();
+            List<UserStory> targetStories = targetEpics.get(i).getUserStories();
+            for (int j = 0; j < baseStories.size(); j++) {
+                UserStory targetStory = targetStories.get(j);
+                for (Task task : baseStories.get(j).getTasks()) {
+                    targetStory.getTasks()
+                            .add(new Task(
+                                    targetStory,
+                                    task.getTitle(),
+                                    task.getDescription(),
+                                    task.getPriority(),
+                                    task.getEffortEstimate(),
+                                    task.getOrderIndex()));
+                }
+            }
+        }
+    }
+
     private void applyAnswers(ProjectVersion version, List<AnswerRequest> answers) {
         Map<Long, ClarifyingQuestion> questionsById = version.getClarifyingQuestions().stream()
                 .collect(Collectors.toMap(ClarifyingQuestion::getId, Function.identity()));
@@ -433,7 +504,8 @@ public class ProjectService {
                 toRequirementResponses(version),
                 toEpicResponses(version),
                 toUserStoryResponses(version),
-                toTaskResponses(version));
+                toTaskResponses(version),
+                toArchitectureRecommendationResponses(version));
     }
 
     private ProjectSummaryResponse toProjectSummaryResponse(Project project) {
@@ -495,6 +567,15 @@ public class ProjectService {
                         t.getPriority(),
                         t.getEffortEstimate(),
                         t.getOrderIndex()))
+                .toList();
+    }
+
+    private static List<ArchitectureRecommendationResponse> toArchitectureRecommendationResponses(
+            ProjectVersion version) {
+        return version.getArchitectureRecommendations().stream()
+                .map(a -> new ArchitectureRecommendationResponse(
+                        a.getId(), a.getComponent(), a.getRecommendation(), a.getReasoning(), a.getTradeoffs(),
+                        a.getOrderIndex()))
                 .toList();
     }
 
@@ -588,6 +669,22 @@ public class ProjectService {
                 .collect(Collectors.joining("\n"));
     }
 
+    private List<GeneratedArchitectureRecommendation> requestArchitectureRecommendationsFromAi(
+            ProjectVersion version) {
+        String prompt = architectureRecommendationsPromptTemplate
+                .replace("{{ideaDescription}}", version.getIdeaSnapshot())
+                .replace("{{requirements}}", formatRequirements(version))
+                .replace("{{epics}}", formatEpics(version));
+        String rawResponse = aiClient.complete(prompt);
+        try {
+            return objectMapper.readValue(rawResponse, new TypeReference<List<GeneratedArchitectureRecommendation>>() {});
+        } catch (JsonProcessingException e) {
+            throw new AiResponseParsingException(
+                    "AI returned a response that could not be parsed as a JSON array of architecture recommendations",
+                    e);
+        }
+    }
+
     private static String loadPromptTemplate(String classpathLocation) {
         try {
             return new ClassPathResource(classpathLocation).getContentAsString(StandardCharsets.UTF_8);
@@ -608,4 +705,7 @@ public class ProjectService {
             String title, String description, TaskPriority priority, TaskEffort effortEstimate) {}
 
     private record GeneratedUserStoryTasks(List<GeneratedTask> tasks) {}
+
+    private record GeneratedArchitectureRecommendation(
+            String component, String recommendation, String reasoning, String tradeoffs) {}
 }

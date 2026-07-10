@@ -2,7 +2,7 @@ import { ProjectVersionResponseStatus, type ProjectVersionResponse } from '@/api
 
 export type StageState = 'done' | 'current' | 'locked'
 
-export type StageKey = 'questions' | 'requirements' | 'epics' | 'userStories' | 'tasks'
+export type StageKey = 'questions' | 'requirements' | 'epics' | 'userStories' | 'tasks' | 'architecture'
 
 export interface StageDefinition {
   key: StageKey
@@ -15,6 +15,7 @@ export const STAGES: StageDefinition[] = [
   { key: 'epics', label: 'Epics' },
   { key: 'userStories', label: 'User Stories' },
   { key: 'tasks', label: 'Tasks' },
+  { key: 'architecture', label: 'Architecture' },
 ]
 
 const STATUS_ORDER: ProjectVersionResponseStatus[] = [
@@ -23,6 +24,7 @@ const STATUS_ORDER: ProjectVersionResponseStatus[] = [
   ProjectVersionResponseStatus.EPICS_GENERATED,
   ProjectVersionResponseStatus.USER_STORIES_GENERATED,
   ProjectVersionResponseStatus.TASKS_GENERATED,
+  ProjectVersionResponseStatus.ARCHITECTURE_GENERATED,
 ]
 
 export function statusIndex(status: ProjectVersionResponseStatus | undefined): number {
@@ -53,12 +55,15 @@ export function stageState(stage: StageKey, status: ProjectVersionResponseStatus
     case 'tasks':
       if (idx < 3) return 'locked'
       return idx === 3 ? 'current' : 'done'
+    case 'architecture':
+      if (idx < 4) return 'locked'
+      return idx === 4 ? 'current' : 'done'
   }
 }
 
 export function currentStage(status: ProjectVersionResponseStatus | undefined): StageKey {
   const found = STAGES.find((stage) => stageState(stage.key, status) === 'current')
-  return found?.key ?? 'tasks'
+  return found?.key ?? 'architecture'
 }
 
 export function stageStatesFor(version: Pick<ProjectVersionResponse, 'status'>) {
@@ -74,6 +79,7 @@ const STATUS_LABELS: Record<string, string> = {
   EPICS_GENERATED: 'Epics generated',
   USER_STORIES_GENERATED: 'User stories generated',
   TASKS_GENERATED: 'Tasks generated',
+  ARCHITECTURE_GENERATED: 'Architecture generated',
 }
 
 /**

@@ -91,6 +91,27 @@ const baseDiff = {
       ],
     },
   ],
+  architectureRecommendations: [
+    {
+      changeType: 'MODIFIED' as const,
+      before: {
+        id: 600,
+        component: 'Database',
+        recommendation: 'PostgreSQL',
+        reasoning: 'Relational domain.',
+        tradeoffs: 'MongoDB was considered.',
+        orderIndex: 0,
+      },
+      after: {
+        id: 700,
+        component: 'Database',
+        recommendation: 'PostgreSQL',
+        reasoning: 'Relational domain.',
+        tradeoffs: 'DynamoDB was considered.',
+        orderIndex: 0,
+      },
+    },
+  ],
 }
 
 describe('VersionDiffPage', () => {
@@ -137,6 +158,32 @@ describe('VersionDiffPage', () => {
     expect(screen.getByText('Build form')).toBeInTheDocument()
     expect(screen.getByText('Old summary')).toBeInTheDocument()
     expect(screen.getByText('New summary')).toBeInTheDocument()
+  })
+
+  it('renders architecture recommendation rows with their change type', () => {
+    vi.mocked(useGetVersionDiff).mockReturnValue({
+      data: baseDiff,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGetVersionDiff>)
+
+    renderPage()
+
+    expect(screen.getByText('Architecture Recommendations')).toBeInTheDocument()
+    expect(screen.getByText('MongoDB was considered.')).toBeInTheDocument()
+    expect(screen.getByText('DynamoDB was considered.')).toBeInTheDocument()
+  })
+
+  it('shows a placeholder when there are no architecture recommendations in either version', () => {
+    vi.mocked(useGetVersionDiff).mockReturnValue({
+      data: { ...baseDiff, architectureRecommendations: [] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGetVersionDiff>)
+
+    renderPage()
+
+    expect(screen.getByText('No architecture recommendations in either version.')).toBeInTheDocument()
   })
 
   it('shows an error state when the diff fails to load', () => {

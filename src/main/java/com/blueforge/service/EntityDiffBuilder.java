@@ -1,5 +1,7 @@
 package com.blueforge.service;
 
+import com.blueforge.dto.ArchitectureRecommendationDiffEntry;
+import com.blueforge.dto.ArchitectureRecommendationResponse;
 import com.blueforge.dto.EpicDiffEntry;
 import com.blueforge.dto.EpicResponse;
 import com.blueforge.dto.RequirementDiffEntry;
@@ -8,6 +10,7 @@ import com.blueforge.dto.TaskDiffEntry;
 import com.blueforge.dto.TaskResponse;
 import com.blueforge.dto.UserStoryDiffEntry;
 import com.blueforge.dto.UserStoryResponse;
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ChangeType;
 import com.blueforge.entity.Epic;
 import com.blueforge.entity.Requirement;
@@ -43,6 +46,12 @@ public class EntityDiffBuilder {
         return new TaskDiffEntry(changeType, toResponse(pair.before()), toResponse(pair.after()));
     }
 
+    public ArchitectureRecommendationDiffEntry buildArchitectureRecommendationDiff(
+            MatchedPair<ArchitectureRecommendation> pair) {
+        ChangeType changeType = classify(pair, EntityDiffBuilder::architectureRecommendationFieldsEqual);
+        return new ArchitectureRecommendationDiffEntry(changeType, toResponse(pair.before()), toResponse(pair.after()));
+    }
+
     private static <T> ChangeType classify(MatchedPair<T> pair, BiPredicate<T, T> fieldsEqual) {
         if (pair.before() == null) {
             return ChangeType.ADDED;
@@ -74,6 +83,14 @@ public class EntityDiffBuilder {
                 && Objects.equals(a.getDescription(), b.getDescription())
                 && Objects.equals(a.getPriority(), b.getPriority())
                 && Objects.equals(a.getEffortEstimate(), b.getEffortEstimate());
+    }
+
+    private static boolean architectureRecommendationFieldsEqual(
+            ArchitectureRecommendation a, ArchitectureRecommendation b) {
+        return Objects.equals(a.getComponent(), b.getComponent())
+                && Objects.equals(a.getRecommendation(), b.getRecommendation())
+                && Objects.equals(a.getReasoning(), b.getReasoning())
+                && Objects.equals(a.getTradeoffs(), b.getTradeoffs());
     }
 
     private static RequirementResponse toResponse(Requirement r) {
@@ -109,5 +126,13 @@ public class EntityDiffBuilder {
                         t.getPriority(),
                         t.getEffortEstimate(),
                         t.getOrderIndex());
+    }
+
+    private static ArchitectureRecommendationResponse toResponse(ArchitectureRecommendation a) {
+        return a == null
+                ? null
+                : new ArchitectureRecommendationResponse(
+                        a.getId(), a.getComponent(), a.getRecommendation(), a.getReasoning(), a.getTradeoffs(),
+                        a.getOrderIndex());
     }
 }

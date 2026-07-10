@@ -18,6 +18,7 @@ import com.blueforge.dto.ProjectVersionResponse;
 import com.blueforge.dto.ProjectVersionSummaryResponse;
 import com.blueforge.dto.RegenerateVersionRequest;
 import com.blueforge.dto.SubmitAnswersRequest;
+import com.blueforge.entity.ArchitectureRecommendation;
 import com.blueforge.entity.ClarifyingAnswer;
 import com.blueforge.entity.ClarifyingQuestion;
 import com.blueforge.entity.Epic;
@@ -1115,5 +1116,155 @@ class ProjectServiceTest {
                 1L, 3, new RegenerateVersionRequest(ProjectVersionStatus.REQUIREMENTS_GENERATED, null));
 
         assertThat(response.versionNumber()).isEqualTo(4);
+    }
+
+    @Test
+    void generateArchitectureRecommendationsPersistsGeneratedRecommendationsAndTransitionsStatus() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        version.setId(10L);
+        Epic epic = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic.setId(300L);
+        version.getEpics().add(epic);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> {
+            ProjectVersion v = inv.getArgument(0);
+            long recommendationId = 600L;
+            for (ArchitectureRecommendation a : v.getArchitectureRecommendations()) {
+                a.setId(recommendationId++);
+            }
+            return v;
+        });
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"component": "Backend Framework", "recommendation": "Spring Boot", "reasoning": "Fits the layered requirements.", "tradeoffs": "Serverless was considered but rejected."},
+                          {"component": "Database", "recommendation": "PostgreSQL", "reasoning": "Relational domain.", "tradeoffs": "MongoDB was considered but rejected."}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.generateArchitectureRecommendations(1L, 1);
+
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        assertThat(response.architectureRecommendations()).hasSize(2);
+        assertThat(response.architectureRecommendations().get(0).component()).isEqualTo("Backend Framework");
+        assertThat(response.architectureRecommendations().get(0).orderIndex()).isEqualTo(0);
+        assertThat(response.architectureRecommendations().get(1).component()).isEqualTo("Database");
+        assertThat(response.architectureRecommendations().get(1).orderIndex()).isEqualTo(1);
+    }
+
+    @Test
+    void generateArchitectureRecommendationsThrowsNotFoundWhenNoMatchingVersion() {
+        projectService = newService();
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.generateArchitectureRecommendations(1L, 1))
+                .isInstanceOf(ProjectVersionNotFoundException.class);
+    }
+
+    @Test
+    void generateArchitectureRecommendationsThrowsWhenTasksNotYetGenerated() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version =
+                new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.USER_STORIES_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateArchitectureRecommendations(1L, 1))
+                .isInstanceOf(InvalidProjectVersionStatusException.class);
+    }
+
+    @Test
+    void generateArchitectureRecommendationsThrowsWhenEpicsListIsEmpty() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        version.setId(10L);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+
+        assertThatThrownBy(() -> projectService.generateArchitectureRecommendations(1L, 1))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void generateArchitectureRecommendationsThrowsAiResponseParsingExceptionWhenAiReturnsInvalidJson() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion version = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.TASKS_GENERATED);
+        version.setId(10L);
+        Epic epic = new Epic(version, "User onboarding", "Covers account creation.", 0);
+        epic.setId(300L);
+        version.getEpics().add(epic);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(version));
+        when(aiClient.complete(any())).thenReturn("not valid json");
+
+        assertThatThrownBy(() -> projectService.generateArchitectureRecommendations(1L, 1))
+                .isInstanceOf(AiResponseParsingException.class);
+    }
+
+    @Test
+    void regenerateVersionForArchitectureClonesTasksAndLeavesBaseVersionUntouched() {
+        projectService = newService();
+
+        Project project = new Project("Test Project");
+        project.setId(1L);
+        ProjectVersion base = new ProjectVersion(project, 1, "An idea", ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        base.setId(10L);
+        Epic baseEpic = new Epic(base, "User onboarding", "Covers account creation.", 0);
+        baseEpic.setId(300L);
+        UserStory baseStory = new UserStory(
+                baseEpic, "Email sign-up", "As a new user, I want to sign up.", "- User can register", 0);
+        baseStory.setId(400L);
+        Task baseTask = new Task(
+                baseStory, "Add POST /register endpoint", "Implement registration.", TaskPriority.HIGH, TaskEffort.M, 0);
+        baseTask.setId(500L);
+        baseStory.getTasks().add(baseTask);
+        baseEpic.getUserStories().add(baseStory);
+        base.getEpics().add(baseEpic);
+        ArchitectureRecommendation baseRecommendation = new ArchitectureRecommendation(
+                base, "Database", "MySQL", "An earlier take.", "Considered PostgreSQL.", 0);
+        baseRecommendation.setId(700L);
+        base.getArchitectureRecommendations().add(baseRecommendation);
+
+        when(projectVersionRepository.findByProjectIdAndVersionNumber(1L, 1)).thenReturn(Optional.of(base));
+        when(projectVersionRepository.findByProjectIdOrderByVersionNumberAsc(1L)).thenReturn(List.of(base));
+        when(projectVersionRepository.save(any(ProjectVersion.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(aiClient.complete(any()))
+                .thenReturn(
+                        """
+                        [
+                          {"component": "Backend Framework", "recommendation": "Spring Boot", "reasoning": "Fits.", "tradeoffs": "Alternative rejected."}
+                        ]
+                        """);
+
+        ProjectVersionResponse response = projectService.regenerateVersion(
+                1L, 1, new RegenerateVersionRequest(ProjectVersionStatus.ARCHITECTURE_GENERATED, null));
+
+        assertThat(response.versionNumber()).isEqualTo(2);
+        assertThat(response.status()).isEqualTo(ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        assertThat(response.tasks()).hasSize(1);
+        assertThat(response.tasks().get(0).title()).isEqualTo("Add POST /register endpoint");
+        assertThat(response.architectureRecommendations()).hasSize(1);
+        assertThat(response.architectureRecommendations().get(0).component()).isEqualTo("Backend Framework");
+
+        assertThat(base.getStatus()).isEqualTo(ProjectVersionStatus.ARCHITECTURE_GENERATED);
+        assertThat(base.getArchitectureRecommendations()).hasSize(1);
+        assertThat(base.getArchitectureRecommendations().get(0).getComponent()).isEqualTo("Database");
     }
 }
