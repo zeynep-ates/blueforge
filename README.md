@@ -39,6 +39,12 @@ The project focuses on clean architecture, AI integration, and production-orient
 - Regeneration never overwrites existing data — it creates a new project version instead, leaving the original version and any manual edits in it untouched
 - Optional note describing why a stage was regenerated
 
+### Version Diffing
+
+- Compare any two versions of the same project
+- See which Requirements, Epics, User Stories, and Tasks were added, removed, or modified, with a summary of counts by change type
+- Epics, User Stories, and Tasks are shown as a nested comparison so changes are readable in context, not just as flat lists
+
 ### Backend
 
 - Layered Spring Boot architecture
@@ -293,6 +299,12 @@ PATCH /api/tasks/{taskId}
 
 ```
 POST /api/projects/{projectId}/versions/{versionNumber}/regenerate
+```
+
+### Compare Versions
+
+```
+GET /api/projects/{projectId}/versions/{fromVersion}/diff/{toVersion}
 ```
 
 Interactive API documentation:

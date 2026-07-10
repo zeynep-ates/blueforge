@@ -2,10 +2,24 @@
 
 All notable changes to BlueForge are documented in this file.
 
-## [Unreleased]
+## [0.9.0] - 2026-07-09
 
 ### Added
 
+- `POST /api/projects/{projectId}/versions/{versionNumber}/regenerate` —
+  regenerates a previously-reached pipeline stage (Requirements, Epics, User
+  Stories, or Tasks) from a base version. Instead of mutating the base
+  version in place, it clones everything up to that stage into a brand-new
+  `ProjectVersion` and re-runs AI generation for just that stage — the base
+  version, and any manual edits in it, are left untouched. This is the first
+  feature to create a version other than `1`, activating the `versionNumber`
+  and `changeDescription` columns that existed since `V1__initial_schema.sql`
+  but were previously unused.
+- "Regenerate" action in each pipeline section (Requirements/Epics/User
+  Stories/Tasks) once that stage is done, via a new `RegenerateDialog` with
+  an optional note. Confirming navigates to the newly created version.
+- A "Regenerated: ..." indicator in the workspace header for any version
+  with `versionNumber > 1`.
 - `GET /api/projects/{projectId}/versions/{fromVersion}/diff/{toVersion}` —
   compares two versions of the same project, returning which Requirements,
   Epics, User Stories, and Tasks were added, removed, or modified between
@@ -30,33 +44,11 @@ All notable changes to BlueForge are documented in this file.
   color-coded by change type. The frontend only calls the diff endpoint and
   renders the response; no comparison logic lives in React.
 
-No Flyway migration was needed — the feature reuses the existing entity
-model and adds no new columns.
-
-## [0.9.0] - 2026-07-09
-
-### Added
-
-- `POST /api/projects/{projectId}/versions/{versionNumber}/regenerate` —
-  regenerates a previously-reached pipeline stage (Requirements, Epics, User
-  Stories, or Tasks) from a base version. Instead of mutating the base
-  version in place, it clones everything up to that stage into a brand-new
-  `ProjectVersion` and re-runs AI generation for just that stage — the base
-  version, and any manual edits in it, are left untouched. This is the first
-  feature to create a version other than `1`, activating the `versionNumber`
-  and `changeDescription` columns that existed since `V1__initial_schema.sql`
-  but were previously unused.
-- "Regenerate" action in each pipeline section (Requirements/Epics/User
-  Stories/Tasks) once that stage is done, via a new `RegenerateDialog` with
-  an optional note. Confirming navigates to the newly created version.
-- A "Regenerated: ..." indicator in the workspace header for any version
-  with `versionNumber > 1`.
-
 Regeneration is only allowed for a stage the base version has already
 reached (`InvalidRegenerationTargetException` / 400 for an invalid target,
 `RegenerationNotAllowedException` / 409 if the stage hasn't been reached
-yet). No new Flyway migration was needed — the feature reuses the existing
-`ProjectVersionStatus` values and schema.
+yet). No new Flyway migration was needed for either feature — both reuse
+the existing `ProjectVersionStatus` values, entity model, and schema as-is.
 
 ### Fixed
 
