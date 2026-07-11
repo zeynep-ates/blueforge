@@ -1,3 +1,5 @@
+# BlueForge
+
 ![Java](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F)
 ![React](https://img.shields.io/badge/React-19-61DAFB)
@@ -5,13 +7,27 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-# BlueForge
-
 BlueForge is an AI-powered software planning platform built with Java, Spring Boot, and React.
 
 Instead of generating an entire specification from a single prompt, BlueForge follows an iterative planning workflow. It asks clarifying questions, captures missing requirements, versions every planning step, and gradually transforms an idea into structured technical artifacts.
 
 The project focuses on clean architecture, AI integration, and production-oriented software engineering practices.
+
+---
+
+## Contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Workflow](#workflow)
+- [API](#api)
+- [Running Locally](#running-locally)
+- [Testing](#testing)
+- [Design Decisions](#design-decisions)
+- [Author](#author)
+- [License](#license)
 
 ---
 
@@ -123,26 +139,14 @@ The project focuses on clean architecture, AI integration, and production-orient
 
 ## Architecture
 
-```
-                  +----------------+
-                  | React Frontend |
-                  +-------+--------+
-                          |
-                          ▼
-                 Spring Boot REST API
-                          |
-                +---------+---------+
-                |                   |
-                ▼                   ▼
-        Application Services    AI Client
-                |                   |
-                |               OpenRouter
-                |
-                ▼
-        Spring Data JPA
-                |
-                ▼
-            PostgreSQL
+```mermaid
+flowchart TD
+    A["React Frontend"] --> B["Spring Boot REST API"]
+    B --> C["Application Services"]
+    B --> D["AI Client"]
+    D --> E["OpenRouter"]
+    C --> F["Spring Data JPA"]
+    F --> G["PostgreSQL"]
 ```
 
 BlueForge follows a layered architecture where each layer has a single responsibility.
@@ -187,65 +191,17 @@ BlueForge follows a layered architecture where each layer has a single responsib
 
 ## Workflow
 
-```
-Idea
-  │
-  ▼
-Clarifying Questions
-  │
-  ▼
-Requirements
-  │
-  ▼
-Epics
-  │
-  ▼
-User Stories
-  │
-  ▼
-Tasks
-  │
-  ▼
-Architecture Recommendations
+```mermaid
+flowchart LR
+    A["Idea"] --> B["Clarifying Questions"]
+    B --> C["Requirements"]
+    C --> D["Epics"]
+    D --> E["User Stories"]
+    E --> F["Tasks"]
+    F --> G["Architecture Recommendations"]
 ```
 
 Each stage has its own endpoint, AI prompt, persistence model, and project version status.
-
----
-
-## Project Structure
-
-```
-src
-├── main
-│   ├── java
-│   │   └── com.blueforge
-│   │       ├── ai
-│   │       ├── config
-│   │       ├── controller
-│   │       ├── dto
-│   │       ├── entity
-│   │       ├── exception
-│   │       ├── repository
-│   │       └── service
-│   │
-│   └── resources
-│       ├── db
-│       │   └── migration
-│       └── prompts
-│
-└── test
-
-frontend
-└── src
-    ├── api
-    ├── components
-    ├── lib
-    └── pages
-
-docs
-└── architecture
-```
 
 ---
 
@@ -354,20 +310,27 @@ http://localhost:8080/v3/api-docs
 
 ## Running Locally
 
-Clone the repository.
+### Prerequisites
+
+- Java 21
+- Node.js 18+
+- Docker (for PostgreSQL)
+- An OpenRouter API key
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/zeynep-ates/blueforge.git
 cd blueforge
 ```
 
-Start PostgreSQL.
+### 2. Start PostgreSQL
 
 ```bash
 docker compose up -d
 ```
 
-Configure environment variables.
+### 3. Configure environment variables
 
 ```text
 OPENROUTER_API_KEY=your_api_key
@@ -376,7 +339,7 @@ OPENROUTER_MODEL=your_model
 
 OpenRouter's free-tier model slugs are periodically discontinued or rate-limited upstream (see `docs/architecture/sprint-1-summary.md`). If AI calls start failing with a 502, check whether `OPENROUTER_MODEL` (default: `google/gemma-4-26b-a4b-it:free`) is still listed at [openrouter.ai/models](https://openrouter.ai/models) and swap in a currently-available `:free` slug.
 
-Optionally, protect the API with a shared API key (see [Authentication](#authentication) below):
+Optionally, protect the API with a shared API key (see [Authentication](#authentication) above):
 
 ```text
 BLUEFORGE_API_KEY=your_chosen_key
@@ -384,13 +347,13 @@ BLUEFORGE_API_KEY=your_chosen_key
 
 If `BLUEFORGE_API_KEY` is left unset, the API is open — this is the default for local development.
 
-Run the backend.
+### 4. Run the backend
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Run the frontend.
+### 5. Run the frontend
 
 ```bash
 cd frontend
@@ -404,17 +367,8 @@ If you set `BLUEFORGE_API_KEY` on the backend, the frontend needs the same value
 VITE_API_KEY=your_chosen_key
 ```
 
-Frontend:
-
-```
-http://localhost:5173
-```
-
-Backend:
-
-```
-http://localhost:8080
-```
+Frontend: `http://localhost:5173`
+Backend: `http://localhost:8080`
 
 ---
 
@@ -445,11 +399,7 @@ npm test
 - Database operations are transactional to guarantee consistency.
 - Frontend API types are generated directly from the backend's OpenAPI specification.
 
-Additional documentation is available in:
-
-```
-docs/architecture
-```
+Additional documentation is available in `docs/architecture`.
 
 ---
 
@@ -461,4 +411,10 @@ Backend Developer
 
 Java • Spring Boot • React • AI Systems
 
-GitHub: https://github.com/zeynep-ates
+GitHub: [zeynep-ates](https://github.com/zeynep-ates)
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
